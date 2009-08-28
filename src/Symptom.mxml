@@ -1,0 +1,382 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application 
+	xmlns:mx="http://www.adobe.com/2006/mxml" 
+	layout="absolute"
+  width="800"
+  height="600"
+  backgroundColor="0xcc5555"
+  frameRate="30"
+  applicationComplete="init();">
+	
+	<mx:Script>
+		<![CDATA[
+			import utils.FPS;
+			import __AS3__.vec.Vector;
+			import core.*;
+			import utils.LinkedList.*;
+			import utils.Vector2;
+			import utils.Constants;
+			import mx.controls.Alert;
+			import mx.controls.ProgressBar;
+			import mx.containers.Canvas;
+			import mx.effects.Fade;
+			import mx.effects.easing.Cubic;
+			
+			/////////////////////////////////////////////////////////////////////////
+			// CONSTANTS
+			/////////////////////////////////////////////////////////////////////////
+			
+			public static const MAIN_WIDTH:Number = 400;
+			public static const MAIN_HEIGHT:Number = 600;
+			
+			public static const TICKS_PER_SECOND:int = 30;
+			public static const DT:Number = 1.0 / TICKS_PER_SECOND;
+			
+			public static const LAUNCH_TIME_MS:Number = 2000.0;
+			
+			public static const F_DRAG:Number = 0.01;
+			public static const MAX_COLLISION_ITERATIONS:int = 2;
+			public static const RESTITUTION:Number = 0.3;
+			
+			/////////////////////////////////////////////////////////////////////////
+			// VARIABLES
+			/////////////////////////////////////////////////////////////////////////
+			
+			/** The active playing screen. */
+			public var main:Canvas;
+			
+			/** Timer for the game loop. */
+			protected var loopTimer:Timer;
+			
+			/** Timer for virus launch. */
+			protected var launchTimer:Timer;
+			// The number of 'launchTimer' ticks til 'LAUNCH_TIME_MS'.
+			private var countsToLaunch:int;
+			
+			/** The player-controlled virus. */
+			protected var virus:Virus;
+			
+			/** All of currently active bodies in game - for example, the virus, RBC's, etc. */
+			protected var bodies:LinkedList;
+
+			/** The list node of the current virus-infected Body object (in 'bodies'), if any. */
+			protected var infected:Node;
+			
+			// Effect for fading out destroyed bodies.
+			private var fade:Fade;
+			
+			protected var isUpPressed:Boolean     = false;
+			protected var isDownPressed:Boolean   = false;
+			protected var isLeftPressed:Boolean   = false;
+			protected var isRightPressed:Boolean  = false;
+			protected var isSpacePressed:Boolean  = false;
+			
+			protected function init():void {
+				main = new Canvas();
+				main.width = MAIN_WIDTH;
+				main.height = MAIN_HEIGHT;
+				main.x = width/2 - main.width/2;
+				main.setStyle("backgroundColor", 0xffcccc);
+				main.horizontalScrollPolicy = "off";
+				main.verticalScrollPolicy = "off";
+				addChild(main);
+				
+				new FPS(fps);
+				
+				bodies = new LinkedList();
+					
+				virus = new Virus(this);
+				bodies.push(virus);
+								
+				// Create a bunch of random-colored RBC's.
+				for (var i:int = 1; i < 40; i++) {
+					var cell:RBC = new RBC(
+						new Vector2(Math.random() * main.width, Math.random() * main.height), 
+						Math.round(Math.random() * 3),
+						Math.round(Math.random() * 3)
+						);
+					bodies.push(cell);
+					main.addChild(cell);
+				}
+				
+				main.addChild(virus);
+				
+				fade = new Fade();
+				fade.alphaFrom = 1.0;
+				fade.alphaTo = 0.0;
+				fade.easingFunction = Cubic.easeIn;
+
+				loopTimer = new Timer(1000.0 / TICKS_PER_SECOND);
+				loopTimer.addEventListener(TimerEvent.TIMER, theLoop);
+				loopTimer.start();
+				
+				var delay:Number = 100;
+				launchTimer = new Timer(delay);
+				launchTimer.addEventListener(TimerEvent.TIMER, expireLaunch);
+				countsToLaunch = LAUNCH_TIME_MS / delay;
+				
+				stage.addEventListener(KeyboardEvent.KEY_DOWN, keyListener);
+				stage.addEventListener(KeyboardEvent.KEY_UP, keyListener);
+			}
+			
+			protected function expireLaunch(e:TimerEvent = null):void {
+				if (e != null) {
+					launchProgress.setProgress(launchTimer.currentCount, countsToLaunch);
+					
+					if (launchTimer.currentCount < countsToLaunch) {
+						return;
+					}
+				}
+				
+				launchTimer.reset();
+				
+				var b:Body = infected.data as Body;
+				b.setStyle("removedEffect", fade);
+				main.removeChild(infected.data as DisplayObject);
+				
+				bodies.pop(infected);
+				
+				infected = null;
+			}
+			
+			protected function keyListener(e:KeyboardEvent):void {
+				var isKeyDown:Boolean = (e.type == KeyboardEvent.KEY_DOWN);
+				
+				if (e.keyCode == 87) { // W
+					isUpPressed = isKeyDown;
+				} else if (e.keyCode == 83) { // S
+					isDownPressed = isKeyDown;
+				} else if (e.keyCode == 65) { // A
+					isLeftPressed = isKeyDown;
+				} else if (e.keyCode == 68) { // D
+					isRightPressed = isKeyDown;
+				} else if (e.keyCode == Keyboard.SPACE) {
+					isSpacePressed = isKeyDown;
+				}
+			}
+			
+			protected function theLoop(e:TimerEvent):void {
+				var i:int;
+				var b:Body;
+				var nj:Node;
+				var bi:Body;
+				var bj:Body;
+				var I:LinkedListIterator;
+				var J:LinkedListIterator;
+				
+				/////////////////////////////////////////
+				// CLEAR FORCES
+				/////////////////////////////////////////
+				
+				I = new LinkedListIterator(bodies);
+				while (I.hasNext()) {
+					b = I.next().data as Body;
+					
+					b.F.reset(); 
+				}
+				
+				/////////////////////////////////////////
+				// ADD FORCES
+				/////////////////////////////////////////
+				
+				var virusDirection:Vector2 = virus.getDirection();
+				var virusSpeed:Number = virus.v.length();
+				
+				// VIRUS MOVEMENT.
+				if (infected == null) {
+					// WASD movement.
+					var m:Vector2 = new Vector2(virusDirection.x * Virus.F_MOVE, virusDirection.y * Virus.F_MOVE);
+					if (virusDirection.dot(virus.v) > 0) {
+						m.scale((Virus.MAX_SPEED - virusSpeed)/Virus.MAX_SPEED);
+					}
+								
+					if (isUpPressed) {
+						virus.F.x += m.x;
+						virus.F.y += m.y;
+					} 
+					if (isDownPressed) {
+						virus.F.x -= m.x;
+						virus.F.y -= m.y;
+					}
+					if (isLeftPressed) {
+						virus.F.x += m.y;
+						virus.F.y -= m.x;
+					}
+					if (isRightPressed) {
+						virus.F.x -= m.y;
+						virus.F.y += m.x;
+					}
+				} else {
+					// Launch by applying an impulse.
+					if (isSpacePressed) {
+						expireLaunch();
+						
+						virus.v.acc(virusDirection, Virus.MAX_SPEED);
+					}
+				}
+				
+				// DRAG.
+				I = new LinkedListIterator(bodies);
+				while (I.hasNext()) {
+					b = I.next().data as Body;
+					
+					b.F.x -= b.v.x * F_DRAG;
+					b.F.y -= b.v.y * F_DRAG;
+				}
+				
+				// COLLISION PENALTY FORCES.
+				var buffer:Number = 1.1;
+				var k:Number = 10.0;
+				
+				I = new LinkedListIterator(bodies);
+				for (i = 0; I.hasNext(); i++) {
+					bi = I.next().data as Body;
+					
+					J = new LinkedListIterator(bodies, i+1); 
+					while (J.hasNext()) {
+						nj = J.next();
+						bj = nj.data as Body;
+						
+						var p:Vector2 = (bi as BoundingSphere).getCenter();
+						var r:Number  = (bi as BoundingSphere).getRadius() * buffer;
+						var q:Vector2 = (bj as BoundingSphere).getCenter();
+						var s:Number  = (bj as BoundingSphere).getRadius() * buffer;
+						
+						var normal:Vector2 = intersect(p, r, q, s);
+							
+						if (normal != null) {
+							if (bi == virus) {
+								if (infected != null) {
+									break;
+								}
+								
+								if (bj is RBC && normal.dot(virusDirection) > Constants.COS_30 && virus.dna == (bj as RBC).color) {
+									infected = nj;
+									
+									virus.x += q.x - p.x;
+									virus.y += q.y - p.y;
+									
+									virus.F.reset();
+									virus.v.reset();
+
+									virus.changeDNA((bj as RBC).dna);
+
+									launchTimer.start();
+									
+									break;
+								}
+							}
+							
+							var d:Number = normal.length();
+							
+							normal.normalize();
+							
+							var relativeV:Vector2 = bi.v.subtract(bj.v);
+							var dot:Number = relativeV.dot(normal);
+							
+							if (dot < 0) {
+								continue;
+							}
+							
+							bi.F.acc(normal, -k * d);
+							bj.F.acc(normal,  k * d);
+						}
+					}
+				}
+				
+				/////////////////////////////////////////
+				// UPDATE
+				/////////////////////////////////////////
+				
+				I = new LinkedListIterator(bodies);
+				while (I.hasNext()) {
+					b = I.next().data as Body;
+					
+					b.applyF();
+					
+					b.step(DT);
+				}
+				
+				// If infecting, move virus to infected body center.
+				if (infected != null) {
+					var pv:Vector2 = (virus as BoundingSphere).getCenter();
+					var pi:Vector2 = (infected.data as BoundingSphere).getCenter();
+					
+					virus.x += pi.x - pv.x;
+					virus.y += pi.y - pv.y;
+				}
+				
+				if (virusSpeed > Virus.MAX_SPEED) {
+					virus.v.normalize(Virus.MAX_SPEED);
+				}
+				
+				/////////////////////////////////////////
+				// CONFINE TO BOUNDS
+				/////////////////////////////////////////
+				
+				I = new LinkedListIterator(bodies);
+				while (I.hasNext()) {
+					b = I.next().data as Body;
+					
+					var center:Vector2 = (b as BoundingSphere).getCenter();
+					var radius:Number = (b as BoundingSphere).getRadius();
+					
+					if (center.x < radius) {
+						b.x += radius - center.x;
+						b.v.x *= -RESTITUTION;
+					}
+					
+					if (center.x > main.width - radius) {
+						b.x -= center.x - (main.width - radius);
+						b.v.x *= -RESTITUTION;
+					}
+					
+					if (center.y < radius) {
+						b.y += radius - center.y;
+						b.v.y *= -RESTITUTION;
+					} 
+					
+					if (center.y > main.height - radius) {
+						b.y -= center.y - (main.height - radius);
+						b.v.y *= -RESTITUTION;
+					}
+				}
+				
+				// DEBUG
+				var virusCenter:Vector2 = virus.getCenter();
+				virus.graphics.clear();
+				virus.graphics.lineStyle(1.0, 0x00bb00, 1.0);
+				virus.graphics.drawCircle(virus.width/2, virus.height/2, virus.getRadius());
+			}
+			
+			/**
+			 * Tests intersection of two spheres.
+			 * 
+			 * @param centerA Center point of first sphere.
+			 * @param radiusA Radius of first sphere.
+			 * @param centerB Center point of second sphere.
+			 * @param radiusB Radius of second sphere.
+			 * 
+			 * @return If spheres intersect, return the contact normal scaled by penetration distance. Otherwise, return null.
+			 */
+			public static function intersect(centerA:Vector2, radiusA:Number, centerB:Vector2, radiusB:Number):Vector2 {				
+				var d:Vector2 = centerB.subtract(centerA);
+				
+				var l:Number = d.length();
+				if (l < radiusA + radiusB) {
+					d.normalize(radiusA + radiusB - l);
+					return d;
+				}
+				
+				return null;
+			}
+		]]>
+	</mx:Script>
+	
+	<!--- FPS display. -->
+	<mx:Label id="fps" />
+	
+	<!--- Virus launch display bar. -->
+	<mx:ProgressBar id="launchProgress" y="20" width="100" mode="manual" />
+	
+</mx:Application>
