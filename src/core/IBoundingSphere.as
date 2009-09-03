@@ -2,7 +2,7 @@ package core {
 	
 	import utils.Vector2;
 	
-	public interface BoundingSphere	{
+	public interface IBoundingSphere	{
 		
 		/** Returns the center of the bounding sphere. */
 		function getCenter():Vector2;

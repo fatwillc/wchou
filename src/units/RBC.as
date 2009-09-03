@@ -1,10 +1,17 @@
-package core {
+package units {
+	
+	import core.Body;
+	import core.Color;
+	import core.IBoundingSphere;
+	
+	import mx.events.FlexEvent;
 	
 	import utils.Constants;
 	import utils.Vector2;
-	import mx.events.FlexEvent;
 
-	public class RBC extends Body implements BoundingSphere {
+	public class RBC extends Body implements IBoundingSphere {
+		
+		public static const SIZE:Number = 52.2;
 		
 		public var color:int;
 		public var dna:int;
@@ -50,16 +57,35 @@ package core {
 		// Avoids redundant computation.
 		private var halfLength:Number;
 		
-		public function RBC(position:Vector2, color:int, dna:int)	{
+		public function RBC(position:Vector2, color:int, dna:int, rotation:Number = 0)	{
 			super();
 			
-			this.color = color;
-			this.dna = dna;
-			
-			width = height = 52.2;
+			width = height = SIZE;
 			
 			x = position.x;
 			y = position.y;
+			
+			setColors(color, dna);
+			
+			this.rotation = rotation;
+			
+			halfLength = width/2;
+			
+			// Use half the length of the diagonal.
+			radius = halfLength;
+			
+			v.x = Math.random() * 10 - 5;
+			v.y = Math.random() * 10 - 5;
+			
+			cacheAsBitmap = true;
+			
+			addEventListener(FlexEvent.HIDE, function():void { });
+		}
+		
+		/** Set cell and DNA color. */
+		public function setColors(color:int, dna:int):void {
+			this.color = color;
+			this.dna = dna;
 			
 			switch (color) {
 				case Color.RED: 
@@ -105,20 +131,6 @@ package core {
 				default:
 					throw new Error("Unrecognized 'dna' parameter.");
 			}
-			
-			rotation = Math.random() * 360;
-			
-			halfLength = width/2;
-			
-			// Use half the length of the diagonal.
-			radius = halfLength;
-			
-			v.x = Math.random() * 10 - 5;
-			v.y = Math.random() * 10 - 5;
-			
-			cacheAsBitmap = true;
-			
-			addEventListener(FlexEvent.HIDE, function():void { });
 		}
 		
 		// @see BoundingSphere.getCenter().

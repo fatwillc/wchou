@@ -1,24 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--- The main application. -->
 <mx:Application 
 	xmlns:mx="http://www.adobe.com/2006/mxml" 
 	layout="absolute"
   width="800"
   height="600"
   backgroundColor="0xcc5555"
+  verticalScrollPolicy="off"
   frameRate="30"
   applicationComplete="init();">
 	
+	<mx:Style>
+		.main {
+			backgroundColor: #ffcccc;
+		}
+	</mx:Style>
+	
 	<mx:Script>
 		<![CDATA[
-			import utils.FPS;
-			import __AS3__.vec.Vector;
 			import core.*;
+			import units.*;
 			import utils.LinkedList.*;
 			import utils.Vector2;
 			import utils.Constants;
+			import utils.FPS;
 			import mx.controls.Alert;
 			import mx.controls.ProgressBar;
 			import mx.containers.Canvas;
+			import mx.modules.ModuleManager;
+			import mx.managers.PopUpManager;
+			import mx.events.ModuleEvent;
+			import mx.modules.IModuleInfo;
 			import mx.effects.Fade;
 			import mx.effects.easing.Cubic;
 			
@@ -27,7 +39,6 @@
 			/////////////////////////////////////////////////////////////////////////
 			
 			public static const MAIN_WIDTH:Number = 400;
-			public static const MAIN_HEIGHT:Number = 600;
 			
 			public static const TICKS_PER_SECOND:int = 30;
 			public static const DT:Number = 1.0 / TICKS_PER_SECOND;
@@ -42,8 +53,14 @@
 			// VARIABLES
 			/////////////////////////////////////////////////////////////////////////
 			
-			/** The active playing screen. */
-			public var main:Canvas;
+			/** For loading modules. */
+			protected var moduleInfo:IModuleInfo;
+
+			/** The level editor. */
+			protected var levelEditor:LevelEditor;
+			
+			/** For uploading files. */
+			protected var file:FileReference;
 			
 			/** Timer for the game loop. */
 			protected var loopTimer:Timer;
@@ -62,9 +79,6 @@
 			/** The list node of the current virus-infected Body object (in 'bodies'), if any. */
 			protected var infected:Node;
 			
-			// Effect for fading out destroyed bodies.
-			private var fade:Fade;
-			
 			protected var isUpPressed:Boolean     = false;
 			protected var isDownPressed:Boolean   = false;
 			protected var isLeftPressed:Boolean   = false;
@@ -72,51 +86,97 @@
 			protected var isSpacePressed:Boolean  = false;
 			
 			protected function init():void {
-				main = new Canvas();
-				main.width = MAIN_WIDTH;
-				main.height = MAIN_HEIGHT;
-				main.x = width/2 - main.width/2;
-				main.setStyle("backgroundColor", 0xffcccc);
-				main.horizontalScrollPolicy = "off";
-				main.verticalScrollPolicy = "off";
-				addChild(main);
+				currentState = "splash";
 				
+				// Set up level loading mechanism.
+				file = new FileReference();
+				file.addEventListener(Event.SELECT, function():void { file.load(); });
+				file.addEventListener(Event.COMPLETE, loadLevel);
+			}
+			
+			protected function play(customLevel:XML = null):void {
+				// Initalize game components.
 				new FPS(fps);
 				
 				bodies = new LinkedList();
 					
 				virus = new Virus(this);
+				virus.x = main.width/2 - virus.width/2;
+				virus.y = main.height - virus.height - 5;
 				bodies.push(virus);
-								
-				// Create a bunch of random-colored RBC's.
-				for (var i:int = 1; i < 40; i++) {
-					var cell:RBC = new RBC(
-						new Vector2(Math.random() * main.width, Math.random() * main.height), 
-						Math.round(Math.random() * 3),
-						Math.round(Math.random() * 3)
-						);
-					bodies.push(cell);
-					main.addChild(cell);
+				
+				if (customLevel == null) {
+					// TODO Load predefined levels!
+				} else {
+					// Load custom level.
+					try {
+						main.height = Number(customLevel.@height);
+					} catch (e:Error) {
+						Alert.show("Invalid map height.", "Symptom > Load custom level");
+					}
+					main.height = Math.max(0, Math.min(1200, main.height)); // TODO Fix this magic number.
+					main.y = height - main.height;
+					
+					var xml:XML;
+					
+					for each (xml in customLevel.RBC) {
+						var rbc:RBC = new RBC(
+							new Vector2(xml.x, xml.y), 
+							Color.fromString(xml.color), 
+							Color.fromString(xml.dna), 
+							Math.random()*360
+							);
+						bodies.push(rbc);
+						main.addChild(rbc);
+					}
 				}
-				
-				main.addChild(virus);
-				
-				fade = new Fade();
-				fade.alphaFrom = 1.0;
-				fade.alphaTo = 0.0;
-				fade.easingFunction = Cubic.easeIn;
 
+				main.addChild(virus);
+
+				// Set up timers.
 				loopTimer = new Timer(1000.0 / TICKS_PER_SECOND);
 				loopTimer.addEventListener(TimerEvent.TIMER, theLoop);
-				loopTimer.start();
-				
+
 				var delay:Number = 100;
 				launchTimer = new Timer(delay);
 				launchTimer.addEventListener(TimerEvent.TIMER, expireLaunch);
 				countsToLaunch = LAUNCH_TIME_MS / delay;
 				
+				// Keyboard events.
 				stage.addEventListener(KeyboardEvent.KEY_DOWN, keyListener);
 				stage.addEventListener(KeyboardEvent.KEY_UP, keyListener);
+				
+				currentState = "";
+				
+				loopTimer.start();
+			}
+			
+			/** Opens the level editor module as a pop-up. */
+			protected function openLevelEditor():void {
+				moduleInfo = ModuleManager.getModule("LevelEditor.swf");
+				moduleInfo.addEventListener(ModuleEvent.READY, _openLevelEditor);
+				moduleInfo.load();
+			}
+			
+			// Listener for loadEditor().
+			private function _openLevelEditor(e:ModuleEvent):void {
+				levelEditor = moduleInfo.factory.create() as LevelEditor;
+				
+				PopUpManager.addPopUp(levelEditor, this, true);
+				PopUpManager.centerPopUp(levelEditor);
+			}
+			
+			protected function loadLevel(e:Event):void {
+				var data:ByteArray = file.data;
+				
+				try {
+					var level:XML = XML(data.readUTFBytes(data.bytesAvailable));
+				} catch (e:Error) {
+					Alert.show("Selected file has invalid content!", "Symptom > Load custom level");
+					return;
+				}
+				
+				play(level);
 			}
 			
 			protected function expireLaunch(e:TimerEvent = null):void {
@@ -225,7 +285,7 @@
 				}
 				
 				// COLLISION PENALTY FORCES.
-				var buffer:Number = 1.1;
+				var buffer:Number = 1;
 				var k:Number = 10.0;
 				
 				I = new LinkedListIterator(bodies);
@@ -237,10 +297,10 @@
 						nj = J.next();
 						bj = nj.data as Body;
 						
-						var p:Vector2 = (bi as BoundingSphere).getCenter();
-						var r:Number  = (bi as BoundingSphere).getRadius() * buffer;
-						var q:Vector2 = (bj as BoundingSphere).getCenter();
-						var s:Number  = (bj as BoundingSphere).getRadius() * buffer;
+						var p:Vector2 = (bi as IBoundingSphere).getCenter();
+						var r:Number  = (bi as IBoundingSphere).getRadius() + buffer;
+						var q:Vector2 = (bj as IBoundingSphere).getCenter();
+						var s:Number  = (bj as IBoundingSphere).getRadius() + buffer;
 						
 						var normal:Vector2 = intersect(p, r, q, s);
 							
@@ -295,12 +355,17 @@
 					b.applyF();
 					
 					b.step(DT);
+					
+					// Scroll screen down if virus is more than halfway past screen.
+					if (b == virus && main.y < 0 && b.y + main.y < height/2 && b.v.y < 0) {
+						main.y = Math.min(0, main.y - b.v.y * DT);
+					}
 				}
 				
 				// If infecting, move virus to infected body center.
 				if (infected != null) {
-					var pv:Vector2 = (virus as BoundingSphere).getCenter();
-					var pi:Vector2 = (infected.data as BoundingSphere).getCenter();
+					var pv:Vector2 = (virus as IBoundingSphere).getCenter();
+					var pi:Vector2 = (infected.data as IBoundingSphere).getCenter();
 					
 					virus.x += pi.x - pv.x;
 					virus.y += pi.y - pv.y;
@@ -318,8 +383,8 @@
 				while (I.hasNext()) {
 					b = I.next().data as Body;
 					
-					var center:Vector2 = (b as BoundingSphere).getCenter();
-					var radius:Number = (b as BoundingSphere).getRadius();
+					var center:Vector2 = (b as IBoundingSphere).getCenter();
+					var radius:Number = (b as IBoundingSphere).getRadius();
 					
 					if (center.x < radius) {
 						b.x += radius - center.x;
@@ -373,10 +438,66 @@
 		]]>
 	</mx:Script>
 	
-	<!--- FPS display. -->
-	<mx:Label id="fps" />
+  <!--
+  /////////////////////////////////////////////////////////
+  // COMPONENTS
+  /////////////////////////////////////////////////////////
+  -->
+  <!--- The active playing screen. -->
+  <mx:Canvas id="main"
+  	width="{MAIN_WIDTH}" height="{height}"
+  	x="{width/2 - main.width/2}"
+  	styleName="main"
+  	horizontalScrollPolicy="off" verticalScrollPolicy="off" />
+  
+  <mx:Canvas id="control">
+		<!--- FPS display. -->
+		<mx:Label id="fps" />
+		
+		<!--- Virus launch display bar. -->
+		<mx:ProgressBar id="launchProgress" y="20" width="100" mode="manual" />
+  </mx:Canvas>
 	
-	<!--- Virus launch display bar. -->
-	<mx:ProgressBar id="launchProgress" y="20" width="100" mode="manual" />
+  <!--
+  /////////////////////////////////////////////////////////
+  // DECLARATIONS
+  /////////////////////////////////////////////////////////
+  -->
+	<!--- Effect for fading out destroyed bodies. -->
+	<mx:Fade id="fade" alphaFrom="1.0" alphaTo="0.0" easingFunction="{Cubic.easeIn}" />
+	
+  <!--
+  /////////////////////////////////////////////////////////
+  // STATES
+  /////////////////////////////////////////////////////////
+  -->
+  <mx:states>
+  	<mx:State name="splash">
+  		<mx:RemoveChild target="{main}" />
+  		<mx:RemoveChild target="{control}" />
+  		
+  		<mx:AddChild>
+  			<mx:Panel 
+  				x="150" y="50"
+  				width="500" height="500"
+  				horizontalAlign="center" 
+  				backgroundColor="white"
+  				borderColor="white"
+  				backgroundAlpha="0.1"
+  				borderAlpha="0.1"
+  				layout="vertical">
+	  			<mx:Button label="Play!" 
+	  				width="200"
+	  				click="play();" />
+	  			<mx:Button label="Load custom level"
+	  				width="200"
+	  				click="file.browse([new FileFilter('Symptom Level', '*.xml')]);" />
+	  			<mx:Button label="Create your own level!" 
+	  				width="200"
+	  				click="openLevelEditor();" />
+  			</mx:Panel>
+  		</mx:AddChild>
+  	</mx:State>
+  </mx:states>
 	
 </mx:Application>

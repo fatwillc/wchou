@@ -1,12 +1,14 @@
-package core {
+package units {
 	
+	import core.Body;
+	import core.IBoundingSphere;
+	import core.Color;
 	import flash.events.MouseEvent;
 	import flash.geom.Matrix;
-	
 	import utils.Constants;
 	import utils.Vector2;
 
-	public class Virus extends Body implements BoundingSphere {
+	public class Virus extends Body implements IBoundingSphere {
 		
 		public static const F_MOVE:Number = 6.0;
 		public static const MAX_SPEED:Number = 400.0;
