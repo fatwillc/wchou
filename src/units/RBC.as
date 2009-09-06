@@ -57,13 +57,10 @@ package units {
 		// Avoids redundant computation.
 		private var halfLength:Number;
 		
-		public function RBC(position:Vector2, color:int, dna:int, rotation:Number = 0)	{
+		public function RBC(color:int, dna:int, rotation:Number = 0)	{
 			super();
 			
 			width = height = SIZE;
-			
-			x = position.x;
-			y = position.y;
 			
 			setColors(color, dna);
 			
@@ -74,12 +71,7 @@ package units {
 			// Use half the length of the diagonal.
 			radius = halfLength;
 			
-			v.x = Math.random() * 10 - 5;
-			v.y = Math.random() * 10 - 5;
-			
 			cacheAsBitmap = true;
-			
-			addEventListener(FlexEvent.HIDE, function():void { });
 		}
 		
 		/** Set cell and DNA color. */

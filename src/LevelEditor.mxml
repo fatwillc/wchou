@@ -3,28 +3,17 @@
 <mx:Module 
 	xmlns:mx="http://www.adobe.com/2006/mxml" 
 	layout="absolute" 
-	width="600" height="500"
-  backgroundColor="white"
-  backgroundAlpha="1.0"
-	verticalScrollPolicy="off"
-	creationComplete="init();">
-  
-  <mx:Style>
-  	.h1 {
-			fontSize: 12;
-			fontWeight: bold;
-  	}
-  	
-  	.h2 {
-  		fontWeight: bold;
-  	}
-  </mx:Style>
+	verticalScrollPolicy="off">
   
   <mx:Script>
   	<![CDATA[
+  		import __AS3__.vec.Vector;
+  		import mx.controls.Image;
+  		import core.IGame;
   		import core.IBoundingSphere;
   		import core.Body;
   		import core.Color;
+  		import units.Finish;
   		import units.RBC;
   		import utils.Vector2;
   		import utils.LinkedList.*;
@@ -32,28 +21,34 @@
   		import mx.controls.Alert;
   		import mx.events.CloseEvent;
   		
+  		/** Reference to main game application. */
+  		[Bindable]
+  		protected var game:IGame;
+  		
   		/** Sample rbc on control panel. */
   		protected var rbc:RBC;
   		
-  		/** The selected new Body to insert. */
-  		protected var selection:Body;
+  		/** The selected new Image to insert. */
+  		protected var selection:Image;
   		
-  		/** Is the current mouse-selected position for the new Body valid? */
+  		/** Is the current mouse-selected position for the new Image valid? */
   		protected var isValidPosition:Boolean = false;
-  		/** Is the user currently picking up a Body? */
+  		/** Is the user currently picking up an Image? */
   		protected var isPickUp:Boolean = false;
   		
   		/** XML output of this level. */
   		[Bindable]
   		protected var output:XML;
   		
-  		public function init():void {
+  		public function init(game:IGame):void {
+  			this.game = game;
+  			
   			callLater(_init);
   		}
   		
   		// Wait for components to be created.
   		private function _init():void {
-  			rbc = new RBC(new Vector2(0, 0), Color.RED, Color.BLUE);
+  			rbc = new RBC(Color.RED, Color.BLUE);
   			rbc.useHandCursor = rbc.mouseChildren = rbc.buttonMode = true;
   			rbc.addEventListener(MouseEvent.CLICK, selectRBC);
   			sampleRBC.addChild(rbc);
@@ -61,12 +56,19 @@
   		
   		protected function selectRBC(e:MouseEvent):void {
   			selection = new RBC(
-  				new Vector2(0, 0), 
   				rbc.color, 
   				rbc.dna
   				);
   			selection.useHandCursor = selection.mouseChildren = selection.buttonMode = true;
    			selection.alpha = 0.6;
+  			onMouseMove();
+  			addChild(selection);
+  			
+  			addSelectionListeners();
+  		}
+  		
+  		protected function selectFinish(e:MouseEvent):void {
+  			selection = new Finish();
   			onMouseMove();
   			addChild(selection);
   			
@@ -83,34 +85,43 @@
   			removeEventListener(MouseEvent.MOUSE_DOWN, onMouseDown);
   		}
   		
-  		/** Centers the selected body to the mouse and checks if this position is valid. */
+  		/** Centers the selected image to the mouse and checks if this position is valid. */
   		protected function onMouseMove(e:MouseEvent = null):void {
   			selection.x = mouseX - selection.width/2;
   			selection.y = mouseY - selection.height/2;
   			
   			// Check if within screen bounds.
-  			if (selection.x > 0 && selection.x < main.width - selection.width && 
-  					selection.y > 0 && selection.y < main.height - selection.height) 
+  			if (selection.x > 0 && selection.x < level.width - selection.width && 
+  					selection.y > 0 && selection.y < level.height - selection.height) 
   					{
-  				// Check for intersections with other bodies.
-  				var bodies:Array = main.getChildren();
-  				
-  				var p:Vector2 = (selection as IBoundingSphere).getCenter();
-  				var r:Number = (selection as IBoundingSphere).getRadius();
-  				
-  				var intersect:Boolean = false;
-  				for each (var b:IBoundingSphere in bodies) {
-	  				var q:Vector2 = b.getCenter();
-	  				q.y -= scroll.scrollPosition;
-	  				var s:Number = b.getRadius();
-  					
-  					if (Symptom.intersect(p, r, q, s) != null) {
-  						intersect = true;
-  						break;
-  					}
-  				}
-  				
-  				if (!intersect) {
+  				if (selection is Body) {
+	  				// Check for intersections with other bodies.
+	  				var bodies:Array = level.getChildren().filter(
+	  					function(item:*, i:int, a:Array):Boolean { return (item is Body); }
+	  					);
+	  				
+	  				var p:Vector2 = new Vector2(level.mouseX, level.mouseY);
+	  				var r:Number = (selection as IBoundingSphere).getRadius();
+	  				
+	  				var intersect:Boolean = false;
+	  				for each (var b:IBoundingSphere in bodies) {
+		  				var q:Vector2 = b.getCenter();
+		  				q.y -= scroll.scrollPosition;
+		  				var s:Number = b.getRadius();
+	  					
+	  					if (Symptom.intersect(p, r, q, s) != null) {
+	  						intersect = true;
+	  						break;
+	  					}
+	  				}
+	  				
+	  				if (!intersect) {
+		  				selection.filters = [glowGreen];
+		  				isValidPosition = true;
+		  				return;
+	  				}
+  				} else {
+  					// TODO Fix with DRY.
 	  				selection.filters = [glowGreen];
 	  				isValidPosition = true;
 	  				return;
@@ -121,7 +132,7 @@
   			isValidPosition = false;
   		}
   		
-  		/** Places selected body in the current mouse position if possible, otherwise nullifies selection. */
+  		/** Places selected image in the current mouse position if possible, otherwise nullifies selection. */
   		protected function onMouseDown(e:MouseEvent):void {
   			// Ignore the first click during a pick up to avoid inserting the body back into the same spot.
   			if (isPickUp) {
@@ -135,9 +146,9 @@
   				selection.alpha = 1;
   				selection.filters = null;
   				
-  				main.addChild(selection);
-  				selection.x = mouseX - selection.width/2;
-  				selection.y = mouseY + scroll.scrollPosition - selection.height/2;
+  				level.addChild(selection);
+  				selection.x = level.mouseX - selection.width/2;
+  				selection.y = level.mouseY + scroll.scrollPosition - selection.height/2;
   				
   				selection.addEventListener(MouseEvent.MOUSE_DOWN, pickUp);
   				
@@ -148,14 +159,14 @@
   			removeSelectionListeners();
   		}
   		
-  		/** "Picks up" an already placed Body in the level. */
+  		/** "Picks up" an already placed Image in the level. */
   		protected function pickUp(e:MouseEvent):void {
   			isPickUp = true;
   				
-  			selection = e.currentTarget as Body;
+  			selection = e.currentTarget as Image;
   			
   			selection.removeEventListener(MouseEvent.MOUSE_DOWN, pickUp);
-  			main.removeChild(selection);
+  			level.removeChild(selection);
   			
   			selection.alpha = 0.6;
   			onMouseMove();
@@ -166,26 +177,32 @@
   		
   		protected function save():void {
   			output =
-	  			<Symptom height={Math.round(main.height)}>
+	  			<Symptom height={Math.round(level.height)}>
 	  			</Symptom>;
   			
-  			var bodies:Array = main.getChildren();
+  			var images:Array = level.getChildren();
   			
-  			for each (var b:Body in bodies) {
+  			for each (var img:Image in images) {
   				var xml:XML;
   				
-  				if (b is RBC) {
-  					var rbc:RBC = b as RBC;
+  				if (img is Finish) {
+  					xml = 
+  						<Finish>
+  							<x>{img.x}</x>
+  							<y>{img.y}</y>
+  						</Finish>;
+  				} else if (img is RBC) {
+  					var rbc:RBC = img as RBC;
   					
   					xml = 
   						<RBC>
-  							<x>{b.x}</x>
-  							<y>{b.y}</y>
+  							<x>{img.x}</x>
+  							<y>{img.y}</y>
   							<color>{Color.toString(rbc.color)}</color>
   							<dna>{Color.toString(rbc.dna)}</dna>
   						</RBC>;
   				} else {
-  					throw new Error("Unrecognized Body.");
+  					throw new Error("Unrecognized Object on level canvas.");
   				}
   				
   				output.appendChild(xml);
@@ -196,7 +213,7 @@
   		
   		protected function reset():void {
   			Alert.show("Are you sure you want to reset this level?", 
-  				"Symptom Level Editor", 
+  				"Symptom > Level Editor", 
   				Alert.YES | Alert.NO, 
   				this, 
   				_reset, 
@@ -207,13 +224,13 @@
   		// Listener for reset().
   		private function _reset(e:CloseEvent):void {
   			if (e.detail == Alert.YES) {	
-  				main.height = heightSlider.value = 600;
+  				level.height = heightSlider.value = 600;
   				scroll.scrollPosition = 0;
-  				main.removeAllChildren();
+  				level.removeAllChildren();
   			}
   		}
   		
-  		protected function close():void {
+  		protected function close(e:CloseEvent):void {
   			Alert.show("Are you sure you want to exit the level editor?", 
   				"Symptom Level Editor", 
   				Alert.YES | Alert.NO, 
@@ -237,55 +254,87 @@
   // COMPONENTS
   /////////////////////////////////////////////////////////
   -->
-  <mx:Canvas id="main" 
-  	width="400" height="600" 
-  	backgroundColor="0xffcccc"
-  	verticalScrollPolicy="off" />
-  	
-  <mx:VScrollBar id="scroll" 
-  	x="400"
-  	width="25" height="100%"
-  	pageSize="{height}" lineScrollSize="{height}"
-  	minScrollPosition="0" maxScrollPosition="{main.height - height}"
-  	scroll="main.y = -scroll.scrollPosition;" />
+  <mx:TitleWindow 
+  	width="670"
+  	height="500" 
+  	title="Level Editor" 
+  	layout="absolute"
+  	cornerRadius="0"
+  	backgroundColor="0xe9dfdf"
+  	backgroundAlpha="1"
+  	borderColor="0xe9dfdf"
+  	borderAlpha="1"
+  	verticalScrollPolicy="off"
+  	horizontalScrollPolicy="off"
+  	showCloseButton="true"
+  	close="close(event);">
   
-  <mx:VBox 
-  	x="430" y="10"
-  	width="160"
-  	horizontalAlign="center">
-  	
-  	<mx:Label text="Map height" styleName="h1" />
-		<mx:HSlider id="heightSlider"
-			width="100%"
-			minimum="600" maximum="1200" 
-			labels="['Min.', 'Max.']"
-			liveDragging="false"
-			change="main.height = heightSlider.value;" />
+	  <mx:Canvas id="level" 
+	  	width="400" height="600" 
+	  	backgroundColor="white"
+	  	verticalScrollPolicy="off" />
+	  	
+	  <mx:VScrollBar id="scroll" 
+	  	x="395"
+	  	width="25" height="100%"
+	  	pageSize="{height}" lineScrollSize="{height}"
+	  	minScrollPosition="0" maxScrollPosition="{level.height - height}"
+	  	scroll="level.y = -scroll.scrollPosition;" />
+	  
+	  <mx:VBox 
+	  	x="415"
+	  	width="235"
+	  	height="100%"
+	  	horizontalAlign="center"
+	  	verticalScrollPolicy="on"
+	  	paddingTop="5"
+	  	paddingLeft="10"
+	  	paddingRight="10"
+	  	borderStyle="solid"
+	  	borderColor="0xbb9999"
+	  	borderThickness="1">
+	  	
+	  	<mx:Label text="Finish area" />
+	  	<mx:Image id="finish"
+	  		source="assets/finish.swf" 
+	  		useHandCursor="true" mouseChildren="true" buttonMode="true"
+	  		click="selectFinish(event);" />
+	  	
+	  	<mx:HRule width="100%" height="15" />
+	  	
+	  	<mx:Label text="Map height" />
+			<mx:HSlider id="heightSlider"
+				width="100%"
+				minimum="{game.getMinLevelHeight()}" maximum="{game.getMaxLevelHeight()}" 
+				labels="['Min.', 'Max.']"
+				liveDragging="false"
+				change="level.height = heightSlider.value;" />
+				
+			<mx:HRule width="100%" height="15" />
 			
-		<mx:HRule width="100%" height="15" />
-		
-		<mx:Canvas id="sampleRBC" />
-		<mx:HBox paddingTop="5">
-			<mx:Label text="Cell" paddingTop="4" styleName="h2" />
-			<mx:Image source="assets/editor/red_box.swf"    click="rbc.setColors(Color.RED,    rbc.dna);" />
-			<mx:Image source="assets/editor/blue_box.swf"   click="rbc.setColors(Color.BLUE,   rbc.dna);" />
-			<mx:Image source="assets/editor/green_box.swf"  click="rbc.setColors(Color.GREEN,  rbc.dna);" />
-			<mx:Image source="assets/editor/yellow_box.swf" click="rbc.setColors(Color.YELLOW, rbc.dna);" />
-		</mx:HBox>
-		<mx:HBox>
-			<mx:Label text="DNA" paddingTop="4" styleName="h2" />
-			<mx:Image source="assets/editor/red_box.swf"    click="rbc.setColors(rbc.color, Color.RED);" />
-			<mx:Image source="assets/editor/blue_box.swf"   click="rbc.setColors(rbc.color, Color.BLUE);"/>
-			<mx:Image source="assets/editor/green_box.swf"  click="rbc.setColors(rbc.color, Color.GREEN);"/>
-			<mx:Image source="assets/editor/yellow_box.swf" click="rbc.setColors(rbc.color, Color.YELLOW);"/>
-		</mx:HBox>
-		
-		<mx:HRule width="100%" height="15" />
-		
-		<mx:Button width="100%" height="40" label="Save!" click="save();" />
-		<mx:Button width="100%" label="Reset" click="reset();" />
-		<mx:Button width="100%" label="Cancel" click="close();" />
-  </mx:VBox>
+			<mx:Canvas id="sampleRBC" />
+			<mx:HBox paddingTop="5">
+				<mx:Label text="Cell" paddingTop="4" />
+				<mx:Image source="assets/editor/red_box.swf"    click="rbc.setColors(Color.RED,    rbc.dna);" />
+				<mx:Image source="assets/editor/blue_box.swf"   click="rbc.setColors(Color.BLUE,   rbc.dna);" />
+				<mx:Image source="assets/editor/green_box.swf"  click="rbc.setColors(Color.GREEN,  rbc.dna);" />
+				<mx:Image source="assets/editor/yellow_box.swf" click="rbc.setColors(Color.YELLOW, rbc.dna);" />
+			</mx:HBox>
+			<mx:HBox>
+				<mx:Label text="DNA" paddingTop="4" />
+				<mx:Image source="assets/editor/red_box.swf"    click="rbc.setColors(rbc.color, Color.RED);" />
+				<mx:Image source="assets/editor/blue_box.swf"   click="rbc.setColors(rbc.color, Color.BLUE);"/>
+				<mx:Image source="assets/editor/green_box.swf"  click="rbc.setColors(rbc.color, Color.GREEN);"/>
+				<mx:Image source="assets/editor/yellow_box.swf" click="rbc.setColors(rbc.color, Color.YELLOW);"/>
+			</mx:HBox>
+			
+			<mx:HRule width="100%" height="15" />
+			
+			<mx:Button width="100%" height="40" label="Save!" click="save();" />
+			<mx:Button width="100%" label="Reset" click="reset();" />
+	  </mx:VBox>
+  
+  </mx:TitleWindow>
 	
   <!--
   /////////////////////////////////////////////////////////
