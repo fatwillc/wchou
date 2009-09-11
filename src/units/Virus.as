@@ -1,14 +1,19 @@
 package units {
 	
 	import core.Body;
-	import core.IBoundingSphere;
 	import core.Color;
+	import core.IBoundingSphere;
+	
 	import flash.events.MouseEvent;
 	import flash.geom.Matrix;
+	
 	import utils.Constants;
 	import utils.Vector2;
 
 	public class Virus extends Body implements IBoundingSphere {
+		
+		public static const WIDTH:Number = 28.3;
+		public static const HEIGHT:Number = 43.6;
 		
 		public static const F_MOVE:Number = 6.0;
 		public static const MAX_SPEED:Number = 400.0;
@@ -27,6 +32,8 @@ package units {
 		private var green:Class;
 		[Embed(source='assets/virus/virus_yellow.swf')]
 		private var yellow:Class;
+		[Embed(source='assets/virus/arrow.swf')]
+		private var arrow:Class;
 		
 		// Avoids redundant computation.
 		private var direction:Vector2 = new Vector2();
@@ -38,8 +45,8 @@ package units {
 			
 			mass = 0.5;
 			
-			width = 28.3;
-			height = 43.6;
+			width = WIDTH;
+			height = HEIGHT;
 			
 			x = symptom.width/2;
 			y = symptom.height/2;
@@ -50,7 +57,7 @@ package units {
 			halfHeight = height/2;
 			
 			// Use half the length of the diagonal.
-			radius = Math.sqrt(halfWidth*halfWidth + halfHeight*halfHeight);
+			radius = Math.sqrt(halfWidth*halfWidth + halfHeight*halfHeight) * 0.8;
 			
 			// Event listeners.
 			symptom.addEventListener(MouseEvent.MOUSE_MOVE, rotateToMouse);
@@ -70,6 +77,14 @@ package units {
 					source = yellow; break;
 				default:
 					throw new Error("Unrecognized 'dna' parameter.");
+			}
+		}
+		
+		public function toggleArrow(isArrow:Boolean):void {
+			if (isArrow) {
+				source = arrow;
+			} else {
+				changeDNA(dna);
 			}
 		}
 		

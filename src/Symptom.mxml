@@ -7,8 +7,7 @@
   backgroundColor="0xbb9999"
   verticalScrollPolicy="off"
   frameRate="30"
-  applicationComplete="init();"
-  implements="core.IGame">
+  applicationComplete="init();">
 	
 	<mx:Style>
 		Alert, Panel, TitleWindow {
@@ -95,7 +94,8 @@
 			// CONSTANTS
 			/////////////////////////////////////////////////////////////////////////
 			
-			public static const MAIN_WIDTH:Number = 400;
+			public static const LEVEL_WIDTH:Number = 400;
+			
 			public static const MIN_LEVEL_HEIGHT:Number = 600;
 			public static const MAX_LEVEL_HEIGHT:Number = 6000;
 			
@@ -125,37 +125,33 @@
 			
 			/** Timer for the game loop. */
 			protected var loopTimer:Timer;
-			
 			/** Timer for virus launch. */
 			protected var launchTimer:Timer;
-			// The number of 'launchTimer' ticks til 'LAUNCH_TIME_MS'.
-			private var countsToLaunch:int;
 			
+			/** All collidable bodies in a level. */
 			protected var bodies:LinkedList;
-			
+			/** Finish areas in a level. */
 			protected var finishes:Vector.<Finish>;
 			
 			/** The player-controlled virus. */
 			protected var virus:Virus;
-			
 			/** The list node of the current virus-infected Body object, if any. */
 			protected var infected:Node;
 			
+			/** Is the up key currently pressed? */
 			protected var isUpPressed:Boolean     = false;
+			/** Is the down key currently pressed? */
 			protected var isDownPressed:Boolean   = false;
+			/** Is the left key currently pressed? */
 			protected var isLeftPressed:Boolean   = false;
+			/** Is the right key currently pressed? */
 			protected var isRightPressed:Boolean  = false;
 			
 			/** Is the space bar currently pressed? */
 			protected var isSpacePressed:Boolean  = false;
 			/** Was the space bar pressed last frame? */
 			protected var wasSpacePressed:Boolean = false;
-			
-			/** @see core.IGame.getMinLevelHeight(). */
-			public function getMinLevelHeight():Number { return MIN_LEVEL_HEIGHT; }
-			/** @see core.IGame.getMaxLevelHeight(). */
-			public function getMaxLevelHeight():Number { return MAX_LEVEL_HEIGHT; }
-			
+
 			protected function init():void {
 				currentState = "splash";
 				
@@ -165,8 +161,10 @@
 				file.addEventListener(Event.COMPLETE, loadLevel);
 			}
 			
+			/** Starts a new game to play. */
 			protected function play(customLevel:XML = null):void {
-				// Initalize game components.
+				currentState = "";
+				
 				main.removeAllChildren();
 				
 				bodies = new LinkedList();
@@ -221,19 +219,16 @@
 				main.addChild(virus);
 
 				// Set up timers.
-				loopTimer = new Timer(1000.0 / TICKS_PER_SECOND);
+				loopTimer = new Timer(1000 / TICKS_PER_SECOND);
 				loopTimer.addEventListener(TimerEvent.TIMER, theLoop);
 
-				var delay:Number = 20;
-				launchTimer = new Timer(delay);
+				var launchDelay:Number = 20;
+				launchTimer = new Timer(launchDelay, LAUNCH_TIME_MS / launchDelay);
 				launchTimer.addEventListener(TimerEvent.TIMER, expireLaunch);
-				countsToLaunch = LAUNCH_TIME_MS / delay;
 				
 				// Keyboard events.
 				stage.addEventListener(KeyboardEvent.KEY_DOWN, keyListener);
 				stage.addEventListener(KeyboardEvent.KEY_UP, keyListener);
-				
-				currentState = "";
 				
 				loopTimer.start();
 			}
@@ -248,13 +243,13 @@
 			// Listener for loadEditor().
 			private function _openLevelEditor(e:ModuleEvent):void {
 				levelEditor = moduleInfo.factory.create() as LevelEditor;
-				levelEditor.init(this);
 				
 				PopUpManager.addPopUp(levelEditor, this, false);
 				PopUpManager.centerPopUp(levelEditor);
 			}
 			
-			protected function loadLevel(e:Event):void {
+			// Loads level data from a pre-selected file. Should not be called directly.
+			private function loadLevel(e:Event):void {
 				var data:ByteArray = file.data;
 				
 				try {
@@ -267,25 +262,7 @@
 				play(level);
 			}
 			
-			protected function expireLaunch(e:TimerEvent = null):void {
-				if (e != null) {
-					launchProgress.setProgress(launchTimer.currentCount, countsToLaunch);
-					
-					if (launchTimer.currentCount < countsToLaunch) {
-						return;
-					}
-				}
-				
-				launchTimer.reset();
-				
-				var i:Body = infected.data as Body;
-				bodies.pop(infected);
-				i.setStyle("removedEffect", fade);
-				main.removeChild(i);
-				
-				infected = null;
-			}
-			
+			/** Keyboard event listener. */
 			protected function keyListener(e:KeyboardEvent):void {
 				var isKeyDown:Boolean = (e.type == KeyboardEvent.KEY_DOWN);
 				
@@ -302,6 +279,60 @@
 				}
 			}
 			
+			/** Ends the game. */
+			protected function endGame(isWin:Boolean):void {
+				loopTimer.stop();
+				launchTimer.stop();
+
+				if (isWin) {						
+					Alert.show(
+						"You win!", 
+						"Symptom", 
+						Alert.OK, 
+						this, 
+						function(e:CloseEvent):void { currentState = "splash"; }
+						);
+				} else {
+					Alert.show(
+						"You lost!", 
+						"Symptom", 
+						Alert.OK, 
+						this, 
+						function(e:CloseEvent):void { currentState = "splash"; }
+						);
+				}
+			}
+
+			/** Checks launch timer expiration and handles launching. */
+			protected function expireLaunch(e:TimerEvent = null):void {
+				if (e != null) {
+					// Draw launch progress indicator ring.
+					var r:Number = 8;
+					var a:Number = 1.0 - (launchTimer.currentCount / launchTimer.repeatCount);
+					
+					virus.graphics.clear();
+					virus.graphics.beginFill(0x00aa00);
+					virus.graphics.drawCircle(virus.width/2, -r*2, r*a);
+					
+					if (launchTimer.currentCount < launchTimer.repeatCount) {
+						return;
+					}
+				}
+				
+				virus.graphics.clear();
+				virus.toggleArrow(false);
+				
+				launchTimer.reset();
+				
+				var i:Body = infected.data as Body;
+				bodies.pop(infected);
+				i.setStyle("removedEffect", fade);
+				main.removeChild(i);
+				
+				infected = null;
+			}
+			
+			/** The main game loop. */
 			protected function theLoop(e:TimerEvent):void {
 				var i:int, j:int;
 				var b:Body, bi:Body, bj:Body;
@@ -319,15 +350,7 @@
 					var fc:Vector2 = new Vector2(f.x + f.width/2, f.y + f.height/2);
 					
 					if (vc.subtract(fc).length() < VICTORY_DISTANCE) {
-						loopTimer.reset();
-						
-						Alert.show(
-							"You win!", 
-							"Symptom", 
-							Alert.OK, 
-							this, 
-							function(e:CloseEvent):void { currentState = "splash"; }
-							);
+						endGame(true);
 					}
 				}
 				
@@ -419,10 +442,12 @@
 								
 								if (bj is RBC && normal.dot(virusDirection) > Constants.COS_30 && virus.dna == (bj as RBC).color) {
 									infected = nj;
+									bj.alpha = 0.5;
 									
 									virus.F.reset();
 									virus.v.reset();
 									virus.changeDNA((bj as RBC).dna);
+									virus.toggleArrow(true);
 
 									launchTimer.start();
 									
@@ -508,26 +533,6 @@
 						b.v.y *= -RESTITUTION;
 					}
 				}
-				
-				// DEBUG
-				var virusCenter:Vector2 = virus.getCenter();
-				virus.graphics.clear();
-				virus.graphics.lineStyle(1.0, 0xddbbbb, 1.0);
-				virus.graphics.drawCircle(virus.width/2, virus.height/2, virus.getRadius());
-			}
-			
-			/** Returns the children of "main" that are Body objects. */
-			protected function getBodies():Array {
-				return main.getChildren().filter(
-					function(item:*, index:int, a:Array):Boolean { return (item is Body); }
-					);
-			}
-			
-			/** Returns the children of "main" that are Finish objects. */
-			protected function getFinishes():Array {
-				return main.getChildren().filter(
-					function(item:*, index:int, a:Array):Boolean { return (item is Finish); }
-					);
 			}
 			
 			/**
@@ -559,27 +564,21 @@
   // COMPONENTS
   /////////////////////////////////////////////////////////
   -->
-  <mx:Canvas id="control" 
-  	width="{300}">
+  <mx:VBox id="control" 
+  	width="300"
+  	paddingTop="10"
+  	paddingLeft="10"
+  	visible="false">  	
+
 		<!--- FPS display. -->
 		<mx:Label id="fps" width="100%" 
-			fontSize="20" textAlign="center" />
-		
-		<!--- Virus launch display bar. -->
-		<mx:ProgressBar id="launchProgress" 
-			y="50" 
-			width="95%"
-			label="Launch Meter" 
-			barColor="0x7ecc7b"
-			mode="manual" 
-			paddingLeft="10" paddingRight="10"
-			labelPlacement="center" />
-  </mx:Canvas>
+			fontSize="10" textAlign="center" />
+  </mx:VBox>
   
   <!--- The active playing screen. -->
   <mx:Canvas id="main"
   	x="{control.width}"
-  	width="{MAIN_WIDTH}" height="{height}"
+  	width="{LEVEL_WIDTH}" height="{height}"
   	backgroundColor="0xeedddd"
   	horizontalScrollPolicy="off" verticalScrollPolicy="off" />
   
@@ -590,7 +589,9 @@
   /////////////////////////////////////////////////////////
   -->
 	<!--- Effect for fading out destroyed bodies. -->
-	<mx:Fade id="fade" alphaFrom="1.0" alphaTo="0.0" easingFunction="{Cubic.easeIn}" />
+	<mx:Fade id="fade" alphaTo="0.0" easingFunction="{Cubic.easeIn}" />
+	
+	<mx:NumberFormatter id="numberFormatter" precision="2" />
 	
   <!--
   /////////////////////////////////////////////////////////
@@ -611,7 +612,7 @@
   				layout="vertical"
   				cornerRadius="0">
   				
-  				<mx:Image source="assets/logo.png" />
+  				<mx:Image source="@Embed(source='assets/logo.png')" />
   				
   				<mx:Text width="100%" 
   					fontSize="9" textAlign="center" fontAntiAliasType="normal" fontSharpness="400"
@@ -622,7 +623,7 @@
   					</mx:htmlText>
   				</mx:Text>
   				
-  				<mx:Image source="assets/directions.png" />
+  				<mx:Image source="@Embed(source='assets/directions.png')" />
   				
   				<mx:Spacer height="10" />
   				
@@ -632,7 +633,7 @@
 	  				click="play();" />
 	  			<mx:Button label="Load custom level"
 	  				width="100%" height="30"
-	  				click="file.browse([new FileFilter('Symptom Level', '*.xml')]);" alpha="1.0"/>
+	  				click="file.browse([new FileFilter('Symptom Level', '*.xml')]);" />
 	  			<mx:Button label="Create your own level!" 
 	  				width="100%" height="30"
 	  				click="openLevelEditor();" />
