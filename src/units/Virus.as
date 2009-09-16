@@ -57,7 +57,7 @@ package units {
 			halfHeight = height/2;
 			
 			// Use half the length of the diagonal.
-			radius = Math.sqrt(halfWidth*halfWidth + halfHeight*halfHeight) * 0.8;
+			radius = Math.sqrt(halfWidth*halfWidth + halfHeight*halfHeight) * 0.55;
 			
 			// Event listeners.
 			symptom.addEventListener(MouseEvent.MOUSE_MOVE, rotateToMouse);
@@ -125,10 +125,13 @@ package units {
 		public function getCenter():Vector2 {
 			var center:Vector2 = new Vector2(x, y);
 			
-			center.x -= direction.x * halfHeight;
-			center.y -= direction.y * halfHeight;
-			center.x -= direction.y * halfWidth;
-			center.y -= -direction.x * halfWidth;
+			center.x -= direction.x * halfHeight + direction.y * halfWidth;
+			center.y -= direction.y * halfHeight - direction.x * halfWidth;
+			
+			// Offset to center of virus body.
+			var off:Number = 8;
+			center.x -= direction.x * off;
+			center.y -= direction.y * off;
 			
 			return center;
 		}

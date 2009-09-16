@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <mx:Application 
 	xmlns:mx="http://www.adobe.com/2006/mxml" 
+	xmlns:core="core.*"
 	layout="absolute"
   width="800"
   height="600"
-  backgroundColor="0xbb9999"
+  backgroundColor="0x9a8685"
+	backgroundGradientAlphas="{[0.0, 0.0]}"
   verticalScrollPolicy="off"
   frameRate="30"
   applicationComplete="init();">
-	
+
 	<mx:Style>
 		Alert, Panel, TitleWindow {
 			cornerRadius: 0;
@@ -130,8 +132,8 @@
 			
 			/** All collidable bodies in a level. */
 			protected var bodies:LinkedList;
-			/** Finish areas in a level. */
-			protected var finishes:Vector.<Finish>;
+			/** End areas in a level. */
+			protected var endAreas:Vector.<EndArea>;
 			
 			/** The player-controlled virus. */
 			protected var virus:Virus;
@@ -159,6 +161,8 @@
 				file = new FileReference();
 				file.addEventListener(Event.SELECT, function():void { file.load(); });
 				file.addEventListener(Event.COMPLETE, loadLevel);
+
+				main.setTileImage(background);
 			}
 			
 			/** Starts a new game to play. */
@@ -168,9 +172,7 @@
 				main.removeAllChildren();
 				
 				bodies = new LinkedList();
-				finishes = new Vector.<Finish>();
-				
-				new FPS(fps);
+				endAreas = new Vector.<EndArea>();
 				
 				virus = new Virus(this);
 				bodies.push(virus);
@@ -189,21 +191,19 @@
 					
 					var xml:XML;
 					
-					for each (xml in customLevel.Finish) {
-						var finish:Finish = new Finish();
-						finish.x = xml.x;
-						finish.y = xml.y;
+					for each (xml in customLevel.EndArea) {
+						var end:EndArea = new EndArea();
+						end.x = xml.x;
+						end.y = xml.y;
 						
-						finishes.push(finish);
-						main.addChild(finish);
+						endAreas.push(end);
+						main.addChild(end);
 					}
 					
 					for each (xml in customLevel.RBC) {
-						var rbc:RBC = new RBC(
-							Color.fromString(xml.color), 
-							Color.fromString(xml.dna), 
-							Math.random()*360
-							);
+						var rbc:RBC = new RBC();
+						rbc.setColors(Color.fromString(xml.color), Color.fromString(xml.dna));
+						rbc.rotation = Math.random() * 360;
 						
 						var center:Vector2 = rbc.getCenter();
 						rbc.x = xml.x - center.x;
@@ -211,6 +211,15 @@
 						
 						bodies.push(rbc);
 						main.addChild(rbc);
+					}
+					
+					for each (xml in customLevel.WBC) {
+						var wbc:WBC = new WBC();
+						wbc.x = xml.x;
+						wbc.y = xml.y;
+						
+						bodies.push(wbc);
+						main.addChild(wbc);
 					}
 				}
 
@@ -312,7 +321,7 @@
 					
 					virus.graphics.clear();
 					virus.graphics.beginFill(0x00aa00);
-					virus.graphics.drawCircle(virus.width/2, -r*2, r*a);
+					virus.graphics.drawCircle(virus.width/2, -r, r*a);
 					
 					if (launchTimer.currentCount < launchTimer.repeatCount) {
 						return;
@@ -339,17 +348,20 @@
 				var img:Image;
 				var I:LinkedListIterator, J:LinkedListIterator;
 				var ni:Node, nj:Node;
-				var f:Finish;
+				var f:EndArea;
+				
+				var virusCenter:Vector2    = virus.getCenter();
+				var virusDirection:Vector2 = virus.getDirection();
+				var virusSpeed:Number      = virus.v.length();
 				
 				/////////////////////////////////////////
 				// CHECK FOR VICTORY CONDITION
 				/////////////////////////////////////////
 				
-				for each (f in finishes) {						
-					var vc:Vector2 = virus.getCenter();
+				for each (f in endAreas) {						
 					var fc:Vector2 = new Vector2(f.x + f.width/2, f.y + f.height/2);
 					
-					if (vc.subtract(fc).length() < VICTORY_DISTANCE) {
+					if (virusCenter.subtract(fc).length() < VICTORY_DISTANCE) {
 						endGame(true);
 					}
 				}
@@ -367,9 +379,6 @@
 				/////////////////////////////////////////
 				// ADD FORCES
 				/////////////////////////////////////////
-				
-				var virusDirection:Vector2 = virus.getDirection();
-				var virusSpeed:Number = virus.v.length();
 				
 				// VIRUS MOVEMENT.
 				if (infected == null) {
@@ -406,6 +415,37 @@
 				
 				wasSpacePressed = isSpacePressed;
 				
+				// WBC ATTRACTION.
+				for (I = new LinkedListIterator(bodies); I.hasNext();) {
+					b = I.next().data as Body;
+					
+					if (b is WBC) {
+						b.graphics.clear();
+						
+						var wc:Vector2 = (b as IBoundingSphere).getCenter();
+						
+						var range:Number = (b as WBC).range;
+						var v:Vector2 = virusCenter.subtract(wc);
+						var lengthV:Number = v.length();
+						
+						if (lengthV < range && infected == null) {
+							v.normalize();
+							b.F.acc(v, WBC.ATTRACTION_FORCE);
+							
+							b.graphics.beginFill(0xff0000, 1.0);
+							b.graphics.drawCircle(
+								b.width/2 + v.x * b.width/1.5, 
+								b.height/2 + v.y * b.height/1.5, 
+								(range - lengthV)/range * 10
+								);
+						}
+						
+						if (b.v.length() > WBC.MAX_SPEED) {
+							b.v.normalize(WBC.MAX_SPEED);
+						}
+					}
+				}
+				
 				// DRAG.
 				for (I = new LinkedListIterator(bodies); I.hasNext();) {
 					b = I.next().data as Body;
@@ -417,8 +457,7 @@
 				// COLLISION PENALTY FORCES.
 				var buffer:Number = 1;
 				var k:Number = 10.0;
-				
-				// Iterate backwards because virus is the last item in 'bodies'.
+
 				i = 0;
 				for (I = new LinkedListIterator(bodies); I.hasNext(); i++) {
 					bi = I.next().data as Body;;
@@ -435,8 +474,14 @@
 						var normal:Vector2 = intersect(p, r, q, s);
 							
 						if (normal != null) {
+
 							if (bi == virus) {
-								if (infected != null || launchTimer.running) {
+								if (infected != null) {
+									break;
+								}
+								
+								if (bj is WBC) {
+									endGame(false);
 									break;
 								}
 								
@@ -563,25 +608,16 @@
   /////////////////////////////////////////////////////////
   // COMPONENTS
   /////////////////////////////////////////////////////////
-  -->
-  <mx:VBox id="control" 
-  	width="300"
-  	paddingTop="10"
-  	paddingLeft="10"
-  	visible="false">  	
-
-		<!--- FPS display. -->
-		<mx:Label id="fps" width="100%" 
-			fontSize="10" textAlign="center" />
-  </mx:VBox>
-  
+  -->  
   <!--- The active playing screen. -->
-  <mx:Canvas id="main"
-  	x="{control.width}"
+  <core:TilingCanvas id="main"
+  	x="200"
   	width="{LEVEL_WIDTH}" height="{height}"
-  	backgroundColor="0xeedddd"
   	horizontalScrollPolicy="off" verticalScrollPolicy="off" />
   
+  <mx:Image id="background"
+  	visible="false"
+  	source="@Embed(source='assets/background.jpg')" />
 	
   <!--
   /////////////////////////////////////////////////////////
@@ -601,7 +637,6 @@
   <mx:states>
   	<mx:State name="splash">
   		<mx:RemoveChild target="{main}" />
-  		<mx:RemoveChild target="{control}" />
   		
   		<mx:AddChild>
   			<mx:Panel 

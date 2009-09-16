@@ -57,17 +57,12 @@ package units {
 		// Avoids redundant computation.
 		private var halfLength:Number;
 		
-		public function RBC(color:int, dna:int, rotation:Number = 0)	{
+		public function RBC()	{
 			super();
 			
 			width = height = SIZE;
 			
-			setColors(color, dna);
-			
-			this.rotation = rotation;
-			
 			halfLength = width/2;
-			
 			// Use half the length of the diagonal.
 			radius = halfLength;
 			
@@ -136,10 +131,8 @@ package units {
 			direction.y = -Math.cos(currentRotation);
 			direction.normalize(1.0);
 			
-			center.x -= direction.x * halfLength;
-			center.y -= direction.y * halfLength;
-			center.x -= direction.y * halfLength;
-			center.y -= -direction.x * halfLength;
+			center.x -= (direction.x + direction.y) * halfLength;
+			center.y -= (direction.y - direction.x) * halfLength;
 			
 			return center;
 		}

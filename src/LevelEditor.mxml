@@ -2,6 +2,7 @@
 <!--- The level editor. -->
 <mx:Module 
 	xmlns:mx="http://www.adobe.com/2006/mxml" 
+	xmlns:units="units.*"
 	layout="absolute" 
 	verticalScrollPolicy="off"
 	creationComplete="init();">
@@ -13,7 +14,7 @@
   		import core.IBoundingSphere;
   		import core.Body;
   		import core.Color;
-  		import units.Finish;
+  		import units.EndArea;
   		import units.RBC;
   		import utils.Vector2;
   		import utils.LinkedList.*;
@@ -21,8 +22,12 @@
   		import mx.controls.Alert;
   		import mx.events.CloseEvent;
   		
-  		/** Sample rbc on control panel. */
-  		protected var rbc:RBC;
+  		public static var WIDTH:Number = 700;
+  		public static var HEIGHT:Number = 500;
+  		
+  		private	var paddingLeft:Number = 10;
+  		private var paddingTop:Number = 30;
+  		private var paddingBottom:Number = 10;
   		
   		/** The selected new Image to insert. */
   		protected var selection:Image;
@@ -37,35 +42,33 @@
   		protected var output:XML;
   		
   		public function init():void {
+  			width = WIDTH;
+  			height = HEIGHT;
+  			
   			callLater(_init);
   		}
   		
   		// Wait for components to be created.
   		private function _init():void {
-  			rbc = new RBC(Color.RED, Color.BLUE);
-  			rbc.useHandCursor = rbc.mouseChildren = rbc.buttonMode = true;
-  			rbc.addEventListener(MouseEvent.CLICK, selectRBC);
-  			sampleRBC.addChild(rbc);
+  			sampleRBC.setColors(Color.RED, Color.BLUE);
   		}
   		
-  		protected function selectRBC(e:MouseEvent):void {
-  			selection = new RBC(
-  				rbc.color, 
-  				rbc.dna
-  				);
-  			selection.useHandCursor = selection.mouseChildren = selection.buttonMode = true;
-   			selection.alpha = 0.6;
+  		protected function select(c:Class):void {
+  			switch (c) {
+  				case EndArea: 
+  					selection = new EndArea(); 
+  					break;
+  				case RBC:
+  					selection = new RBC();
+  					(selection as RBC).setColors(sampleRBC.color, sampleRBC.dna);
+  					break;
+  				case WBC:
+  					selection = new WBC();
+  					break;
+  			}
+  			
   			onMouseMove();
   			addChild(selection);
-  			
-  			addSelectionListeners();
-  		}
-  		
-  		protected function selectFinish(e:MouseEvent):void {
-  			selection = new Finish();
-  			onMouseMove();
-  			addChild(selection);
-  			
   			addSelectionListeners();
   		}
   		
@@ -84,9 +87,11 @@
   			selection.x = mouseX - selection.width/2;
   			selection.y = mouseY - selection.height/2;
   			
+  			isValidPosition = true;
+  			
   			// Check if within screen bounds.
-  			if (selection.x > 0 && selection.x < level.width - selection.width && 
-  					selection.y > 0 && selection.y < level.height - selection.height) 
+  			if (selection.x > paddingLeft && selection.x < paddingLeft + level.width - selection.width && 
+  					selection.y > paddingTop && selection.y < HEIGHT - selection.height - paddingBottom) 
   					{
   				if (selection is Body) {
 	  				// Check for intersections with other bodies.
@@ -97,33 +102,18 @@
 	  				var p:Vector2 = new Vector2(level.mouseX, level.mouseY);
 	  				var r:Number = (selection as IBoundingSphere).getRadius();
 	  				
-	  				var intersect:Boolean = false;
 	  				for each (var b:IBoundingSphere in bodies) {
-		  				var q:Vector2 = b.getCenter();
-		  				q.y -= scroll.scrollPosition;
-		  				var s:Number = b.getRadius();
-	  					
-	  					if (Symptom.intersect(p, r, q, s) != null) {
-	  						intersect = true;
+	  					if (Symptom.intersect(p, r, b.getCenter(), b.getRadius()) != null) {
+	  						isValidPosition = false;
 	  						break;
 	  					}
 	  				}
-	  				
-	  				if (!intersect) {
-		  				selection.filters = [glowGreen];
-		  				isValidPosition = true;
-		  				return;
-	  				}
-  				} else {
-  					// TODO Fix with DRY.
-	  				selection.filters = [glowGreen];
-	  				isValidPosition = true;
-	  				return;
   				}
+  			} else {
+  				isValidPosition = false;
   			}
   			
-  			selection.filters = [glowRed];
-  			isValidPosition = false;
+  			selection.filters = isValidPosition ? [glowGreen] : [glowRed];
   		}
   		
   		/** Places selected image in the current mouse position if possible, otherwise nullifies selection. */
@@ -142,7 +132,7 @@
   				
   				level.addChild(selection);
   				selection.x = level.mouseX - selection.width/2;
-  				selection.y = level.mouseY + scroll.scrollPosition - selection.height/2;
+  				selection.y = level.mouseY - selection.height/2;
   				
   				selection.addEventListener(MouseEvent.MOUSE_DOWN, pickUp);
   				
@@ -179,12 +169,12 @@
   			for each (var img:Image in images) {
   				var xml:XML;
   				
-  				if (img is Finish) {
+  				if (img is EndArea) {
   					xml = 
-  						<Finish>
+  						<EndArea>
   							<x>{img.x}</x>
   							<y>{img.y}</y>
-  						</Finish>;
+  						</EndArea>;
   				} else if (img is RBC) {
   					var rbc:RBC = img as RBC;
   					
@@ -195,6 +185,12 @@
   							<color>{Color.toString(rbc.color)}</color>
   							<dna>{Color.toString(rbc.dna)}</dna>
   						</RBC>;
+  				} else if (img is WBC) {
+  					xml = 
+  						<WBC>
+  							<x>{img.x}</x>
+  							<y>{img.y}</y>
+  						</WBC>;
   				} else {
   					throw new Error("Unrecognized Object on level canvas.");
   				}
@@ -288,11 +284,10 @@
 	  	borderColor="0xbb9999"
 	  	borderThickness="1">
 	  	
-	  	<mx:Label text="Finish area" />
-	  	<mx:Image id="finish"
-	  		source="assets/finish.swf" 
+	  	<mx:Label text="End area" />
+	  	<units:EndArea id="endArea"
 	  		useHandCursor="true" mouseChildren="true" buttonMode="true"
-	  		click="selectFinish(event);" />
+	  		click="select(EndArea);" />
 	  	
 	  	<mx:HRule width="100%" height="15" />
 	  	
@@ -306,21 +301,30 @@
 				
 			<mx:HRule width="100%" height="15" />
 			
-			<mx:Canvas id="sampleRBC" />
+			<units:RBC id="sampleRBC"
+				useHandCursor="true" buttonMode="true" mouseChildren="true" 
+				click="select(RBC);" />
+			
 			<mx:HBox paddingTop="5">
 				<mx:Label text="Cell" paddingTop="4" />
-				<mx:Image source="assets/editor/red_box.swf"    click="rbc.setColors(Color.RED,    rbc.dna);" />
-				<mx:Image source="assets/editor/blue_box.swf"   click="rbc.setColors(Color.BLUE,   rbc.dna);" />
-				<mx:Image source="assets/editor/green_box.swf"  click="rbc.setColors(Color.GREEN,  rbc.dna);" />
-				<mx:Image source="assets/editor/yellow_box.swf" click="rbc.setColors(Color.YELLOW, rbc.dna);" />
+				<mx:Image source="assets/editor/red_box.swf"    click="sampleRBC.setColors(Color.RED,    sampleRBC.dna);" />
+				<mx:Image source="assets/editor/blue_box.swf"   click="sampleRBC.setColors(Color.BLUE,   sampleRBC.dna);" />
+				<mx:Image source="assets/editor/green_box.swf"  click="sampleRBC.setColors(Color.GREEN,  sampleRBC.dna);" />
+				<mx:Image source="assets/editor/yellow_box.swf" click="sampleRBC.setColors(Color.YELLOW, sampleRBC.dna);" />
 			</mx:HBox>
 			<mx:HBox>
 				<mx:Label text="DNA" paddingTop="4" />
-				<mx:Image source="assets/editor/red_box.swf"    click="rbc.setColors(rbc.color, Color.RED);" />
-				<mx:Image source="assets/editor/blue_box.swf"   click="rbc.setColors(rbc.color, Color.BLUE);"/>
-				<mx:Image source="assets/editor/green_box.swf"  click="rbc.setColors(rbc.color, Color.GREEN);"/>
-				<mx:Image source="assets/editor/yellow_box.swf" click="rbc.setColors(rbc.color, Color.YELLOW);"/>
+				<mx:Image source="assets/editor/red_box.swf"    click="sampleRBC.setColors(sampleRBC.color, Color.RED);" />
+				<mx:Image source="assets/editor/blue_box.swf"   click="sampleRBC.setColors(sampleRBC.color, Color.BLUE);"/>
+				<mx:Image source="assets/editor/green_box.swf"  click="sampleRBC.setColors(sampleRBC.color, Color.GREEN);"/>
+				<mx:Image source="assets/editor/yellow_box.swf" click="sampleRBC.setColors(sampleRBC.color, Color.YELLOW);"/>
 			</mx:HBox>
+			
+			<mx:HRule width="100%" height="15" />
+			
+			<units:WBC id="sampleWBC" 
+				useHandCursor="true" buttonMode="true" mouseChildren="true" 
+				click="select(WBC);" />
 			
 			<mx:HRule width="100%" height="15" />
 			
