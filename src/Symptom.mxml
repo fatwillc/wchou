@@ -11,64 +11,7 @@
   frameRate="30"
   applicationComplete="init();">
 
-	<mx:Style>
-		Alert, Panel, TitleWindow {
-			cornerRadius: 0;
-			
-			backgroundColor: white;
-			backgroundAlpha: 0.7;
-			
-			borderColor: white;
-			borderAlpha: 0.7;
-			
-			color: black;
-			
-			titleStyleName: "title";
-		}
-		
-		TitleWindow {
-	   closeButtonUpSkin:       Embed(source="assets/close_up.swf");
-	   closeButtonDisabledSkin: Embed(source="assets/close_up.swf");
-	   closeButtonOverSkin:     Embed(source="assets/close_over.swf");
-	   closeButtonDownSkin:     Embed(source="assets/close_down.swf");
-		}
-		
-		Button {
-			cornerRadius: 0;
-			
-			themeColor: #8b6e6e;
-			
-			borderColor: white;
-			
-			fillColors: #ccaaaa, #ccaaaa;
-			fillAlphas: 1.0, 1.0;
-			highlightAlphas: 0.0, 0.0;
-			focusAlpha: 0.0;
-			
-			letterSpacing: 1;
-			fontSize: 9;
-			fontWeight: normal;
-			fontAntiAliasType: normal;
-			fontSharpness: 400;
-		}
-		
-		ScrollBar {
-			highlightAlphas: 0.0, 0.0;
-			trackColors: #997777, #997777;
-		}
-		
-		Text, Label, .title {
-			fontSize: 9;
-			fontWeight: normal;
-			fontAntiAliasType: normal;
-			fontSharpness: 400;
-		}
-		
-		.title {
-			fontSize: 11;
-			letterSpacing: 1;
-		}
-	</mx:Style>
+	<mx:Style source="styles/symptom.css" />
 	
 	<mx:Script>
 		<![CDATA[
@@ -525,11 +468,6 @@
 					b.applyF();
 					
 					b.step(DT);
-					
-					// Scroll screen according to virus movement & position.
-					if (b == virus && main.y < 0 && b.y + main.y < height/3 && b.v.y < 0) {
-						main.y = Math.min(0, main.y - b.v.y * DT);
-					}
 				}
 				
 				// If infecting, move virus to infected body center.
@@ -577,6 +515,11 @@
 						b.y -= center.y - (maxHeight - radius);
 						b.v.y *= -RESTITUTION;
 					}
+				}
+				
+				// Scroll screen according to virus position.
+				if (main.y < 0 && (virus.y + main.y) < height/2) {
+					main.y = Math.min(0, height/2 - virus.y);
 				}
 			}
 			
