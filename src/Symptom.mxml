@@ -15,12 +15,14 @@
 	
 	<mx:Script>
 		<![CDATA[
+			import mx.events.StateChangeEvent;
 			import core.*;
 			import units.*;
 			import utils.LinkedList.*;
 			import utils.Vector2;
 			import utils.Constants;
 			import utils.FPS;
+			import utils.SoundManager;
 			import __AS3__.vec.Vector;
 			import mx.controls.Image;
 			import mx.controls.Text;
@@ -68,6 +70,10 @@
 			/** The level editor. */
 			protected var levelEditor:LevelEditor;
 			
+			/** Manages playing sounds. */
+			[Bindable]
+			protected var soundManager:SoundManager;
+			
 			/** Timer for the game loop. */
 			protected var loopTimer:Timer;
 			/** Timer for virus launch. */
@@ -100,6 +106,13 @@
 			protected function init():void {
 				currentState = "splash";
 				
+				soundManager = new SoundManager();
+				
+				addEventListener(StateChangeEvent.CURRENT_STATE_CHANGE, stateChanged);
+				
+				// Execute state-specific behaviors for splash state.
+				stateChanged();
+				
 				// Set up level loading mechanism.
 				file = new FileReference();
 				file.addEventListener(Event.SELECT, function():void { file.load(); });
@@ -108,9 +121,18 @@
 				main.setTileImage(background);
 			}
 			
+			/** Handles state changes. */
+			protected function stateChanged(e:StateChangeEvent = null):void {
+				if (currentState == "splash") {
+					soundManager.playSplashMusic();
+				}
+			}
+			
 			/** Starts a new game to play. */
 			protected function play(customLevel:XML = null):void {
 				currentState = "";
+				
+				soundManager.playGameMusic();
 				
 				main.removeAllChildren();
 				
@@ -271,6 +293,8 @@
 					}
 				}
 				
+				soundManager.playRandomLaunch();
+				
 				virus.graphics.clear();
 				virus.toggleArrow(false);
 				
@@ -429,6 +453,8 @@
 								}
 								
 								if (bj is RBC && normal.dot(virusDirection) > Constants.COS_30 && virus.dna == (bj as RBC).color) {
+									soundManager.playRandomInfect();
+									
 									infected = nj;
 									bj.alpha = 0.5;
 									
@@ -518,8 +544,9 @@
 				}
 				
 				// Scroll screen according to virus position.
-				if (main.y < 0 && (virus.y + main.y) < height/2) {
-					main.y = Math.min(0, height/2 - virus.y);
+				virusCenter = virus.getCenter();
+				if (main.y < 0 && (virusCenter.y + main.y) < height/2) {
+					main.y = Math.min(0, height/2 - virusCenter.y);
 				}
 			}
 			
@@ -611,9 +638,11 @@
 	  				click="play();" />
 	  			<mx:Button label="Load custom level"
 	  				width="100%" height="30"
+	  				mouseDownEffect="{soundManager.buttonEffect}"
 	  				click="file.browse([new FileFilter('Symptom Level', '*.xml')]);" />
 	  			<mx:Button label="Create your own level!" 
 	  				width="100%" height="30"
+	  				mouseDownEffect="{soundManager.buttonEffect}"
 	  				click="openLevelEditor();" />
   			</mx:Panel>
   		</mx:AddChild>
