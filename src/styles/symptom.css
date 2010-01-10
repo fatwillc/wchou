@@ -54,3 +54,16 @@
 		fontSize: 11;
 		letterSpacing: 1;
 	}
+	
+	.tutorial {
+		cornerRadius: 3;
+		
+		backgroundColor: green;
+		borderColor: green;
+		
+		borderThicknessTop: 0;
+		borderThicknessLeft: 0;
+		borderThicknessRight: 0;
+		
+		headerHeight: 0;
+	}

@@ -1,12 +1,8 @@
 package units {
 	
-	import core.Body;
-	import core.Color;
-	import core.IBoundingSphere;
-	
 	import mx.events.FlexEvent;
 	
-	import utils.Constants;
+	import utils.Geometry;
 	import utils.Vector2;
 
 	public class RBC extends Body implements IBoundingSphere {
@@ -124,7 +120,7 @@ package units {
 		public function getCenter():Vector2 {
 			var center:Vector2 = new Vector2(x, y);
 			
-			var currentRotation:Number = rotation * Constants.DEGREES_TO_RADIANS;
+			var currentRotation:Number = rotation * Geometry.DEGREES_TO_RADIANS;
 			
 			var direction:Vector2 = new Vector2();
 			direction.x = Math.sin(currentRotation);

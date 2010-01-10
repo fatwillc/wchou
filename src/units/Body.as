@@ -1,4 +1,4 @@
-package core {
+package units {
 	
 	import mx.controls.Image;	
 	import utils.Vector2;

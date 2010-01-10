@@ -21,6 +21,12 @@ package utils {
 			return x * v.x + y * v.y;
 		}
 		
+		/** Sets the values of this vector. */
+		public function put(x:Number, y:Number):void {
+			this.x = x;
+			this.y = y;
+		}
+		
 		/** Copies over values of 'v'. */
 		public function copy(v:Vector2):void {
 			this.x = v.x;
@@ -58,7 +64,7 @@ package utils {
 		}
 		
 		/** [this] = [0,0]. */
-		public function reset():void {
+		public function zero():void {
 			x = y = 0;
 		}
 	}

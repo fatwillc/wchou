@@ -1,8 +1,5 @@
 package units {
-	import core.Body;
-	import core.IBoundingSphere;
 	
-	import utils.Constants;
 	import utils.Vector2;
 
 	public class WBC extends Body implements IBoundingSphere	{

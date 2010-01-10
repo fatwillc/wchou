@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--- The level editor. -->
+<!--- 
+The level editor, as a Module for loose coupling.
+-->
 <mx:Module 
 	xmlns:mx="http://www.adobe.com/2006/mxml" 
 	xmlns:units="units.*"
@@ -9,18 +11,15 @@
   
   <mx:Script>
   	<![CDATA[
+  		import units.*;
+  		import utils.Vector2;
+  		import utils.Geometry;
+  		import utils.LinkedList.*;
   		import __AS3__.vec.Vector;
   		import mx.controls.Image;
-  		import core.IBoundingSphere;
-  		import core.Body;
-  		import core.Color;
-  		import units.EndArea;
-  		import units.RBC;
-  		import utils.Vector2;
-  		import utils.LinkedList.*;
-  		import mx.managers.PopUpManager;
   		import mx.controls.Alert;
   		import mx.events.CloseEvent;
+  		import mx.managers.PopUpManager;
   		
   		public static var WIDTH:Number = 700;
   		public static var HEIGHT:Number = 500;
@@ -103,7 +102,7 @@
 	  				var r:Number = (selection as IBoundingSphere).getRadius();
 	  				
 	  				for each (var b:IBoundingSphere in bodies) {
-	  					if (Symptom.intersect(p, r, b.getCenter(), b.getRadius()) != null) {
+	  					if (Geometry.intersect(p, r, b.getCenter(), b.getRadius()) != null) {
 	  						isValidPosition = false;
 	  						break;
 	  					}
