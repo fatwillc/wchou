@@ -1,69 +1,69 @@
-	Alert, Panel, TitleWindow {
-		cornerRadius: 0;
-		
-		backgroundColor: white;
-		backgroundAlpha: 0.7;
-		
-		borderColor: white;
-		borderAlpha: 0.7;
-		
-		color: black;
-		
-		titleStyleName: "title";
-	}
-	
-	TitleWindow {
-   closeButtonUpSkin:       Embed(source="assets/close_up.swf");
-   closeButtonDisabledSkin: Embed(source="assets/close_up.swf");
-   closeButtonOverSkin:     Embed(source="assets/close_over.swf");
-   closeButtonDownSkin:     Embed(source="assets/close_down.swf");
-	}
-	
-	Button {
-		cornerRadius: 0;
-		
-		themeColor: #8b6e6e;
-		
-		borderColor: white;
-		
-		fillColors: #ccaaaa, #ccaaaa;
-		fillAlphas: 1.0, 1.0;
-		highlightAlphas: 0.0, 0.0;
-		focusAlpha: 0.0;
-		
-		letterSpacing: 1;
-		fontSize: 9;
-		fontWeight: normal;
-		fontAntiAliasType: normal;
-		fontSharpness: 400;
-	}
-	
-	ScrollBar {
-		highlightAlphas: 0.0, 0.0;
-		trackColors: #997777, #997777;
-	}
-	
-	Text, Label, .title {
-		fontSize: 9;
-		fontWeight: normal;
-		fontAntiAliasType: normal;
-		fontSharpness: 400;
-	}
-	
-	.title {
-		fontSize: 11;
-		letterSpacing: 1;
-	}
-	
-	.tutorial {
-		cornerRadius: 3;
-		
-		backgroundColor: green;
-		borderColor: green;
-		
-		borderThicknessTop: 0;
-		borderThicknessLeft: 0;
-		borderThicknessRight: 0;
-		
-		headerHeight: 0;
-	}
+Alert, Panel, TitleWindow {
+  cornerRadius: 0;
+  
+  backgroundColor: white;
+  backgroundAlpha: 0.7;
+  
+  borderColor: white;
+  borderAlpha: 0.7;
+  
+  color: black;
+  
+  titleStyleName: "title";
+}
+
+TitleWindow {
+ closeButtonUpSkin:       Embed(source="assets/close_up.swf");
+ closeButtonDisabledSkin: Embed(source="assets/close_up.swf");
+ closeButtonOverSkin:     Embed(source="assets/close_over.swf");
+ closeButtonDownSkin:     Embed(source="assets/close_down.swf");
+}
+
+Button {
+  cornerRadius: 0;
+  
+  themeColor: #8b6e6e;
+  
+  borderColor: white;
+  
+  fillColors: #ccaaaa, #ccaaaa;
+  fillAlphas: 1.0, 1.0;
+  highlightAlphas: 0.0, 0.0;
+  focusAlpha: 0.0;
+  
+  letterSpacing: 1;
+  fontSize: 9;
+  fontWeight: normal;
+  fontAntiAliasType: normal;
+  fontSharpness: 400;
+}
+
+ScrollBar {
+  highlightAlphas: 0.0, 0.0;
+  trackColors: #997777, #997777;
+}
+
+Label, .title {
+  fontSize: 9;
+  fontWeight: normal;
+  fontAntiAliasType: normal;
+  fontSharpness: 400;
+}
+
+.title {
+  fontSize: 11;
+  letterSpacing: 1;
+}
+
+.tutorial {
+  cornerRadius: 3;
+  
+  backgroundColor: green;
+  borderColor: green;
+  
+  borderThicknessTop: 0;
+  borderThicknessLeft: 0;
+  borderThicknessRight: 0;
+  
+  headerHeight: 0;
+}

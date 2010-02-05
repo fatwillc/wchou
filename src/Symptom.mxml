@@ -1,587 +1,639 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--- 
-The game's point of entry.
+///////////////////////////////////////////////////////////////////////////////
+// DESCRIPTION
+///////////////////////////////////////////////////////////////////////////////
+
+Symptom is a 2D vertical virus scroller written by William Chou.
+
+The original concept was from the "Contagious Games" team as part of CIS300 
+Game Design course in Cornell University, of which William Chou was a member.
+
+See http://willchou.com for more information.
+
+///////////////////////////////////////////////////////////////////////////////
+// COPYRIGHT NOTICE
+///////////////////////////////////////////////////////////////////////////////
+
+Copyright 2010 William Chou. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without 
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this 
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice, 
+   this list of conditions and the following disclaimer in the documentation 
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY WILLIAM CHOU ``AS IS'' AND ANY EXPRESS OR IMPLIED
+WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF 
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO 
+EVENT SHALL WILLIAM CHOU OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, 
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR 
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF 
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE 
+OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF 
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+The views and conclusions contained in the software and documentation are those 
+of the authors and should not be interpreted as representing official policies, 
+either expressed or implied, of William Chou.
+
+///////////////////////////////////////////////////////////////////////////////
 -->
 <mx:Application 
-	xmlns:mx="http://www.adobe.com/2006/mxml" 
-	xmlns:ui="ui.*"
-	layout="absolute"
+  xmlns:mx="http://www.adobe.com/2006/mxml" 
+  xmlns:ui="ui.*"
+  xmlns:editor="editor.*"
+  layout="absolute"
   width="800"
-  height="600"
-  backgroundColor="0x9a8685"
-	backgroundGradientAlphas="{[0.0, 0.0]}"
-  verticalScrollPolicy="off"
+  height="400"
+  backgroundColor="0x333333"
+  backgroundGradientAlphas="{[0.0, 0.0]}"
+  horizontalScrollPolicy="off"  verticalScrollPolicy="off"
   frameRate="30"
-  applicationComplete="init();">
+  applicationComplete="init();"  viewSourceURL="srcview/index.html">
 
-	<mx:Style source="styles/symptom.css" />
-	
-	<mx:Script>
-		<![CDATA[
-			import units.*;
-			import ui.*;
-			import io.InputState;
-			import utils.*;
-			import utils.LinkedList.*;
-			import __AS3__.vec.Vector;
-			import mx.controls.Image;
-			import mx.controls.Text;
-			import mx.controls.Alert;
-			import mx.controls.ProgressBar;
-			import mx.containers.Canvas;
-			import mx.containers.Panel;
-			import mx.modules.ModuleManager;
-			import mx.managers.PopUpManager;
-			import mx.events.ModuleEvent;
-			import mx.events.CloseEvent;
-			import mx.events.StateChangeEvent;
-			import mx.modules.IModuleInfo;
-			import mx.effects.Fade;
-			import mx.effects.easing.Cubic;
-			
-			/////////////////////////////////////////////////////////////////////////
-			// CONSTANTS
-			/////////////////////////////////////////////////////////////////////////
-			
-			/** Fixed width of a level in pixels. */
-			public static const LEVEL_WIDTH:Number = 400;
-			/** Minimum height of a level. */
-			public static const MIN_LEVEL_HEIGHT:Number = 600;
-			/** Maximum height of a level. */
-			public static const MAX_LEVEL_HEIGHT:Number = 6000;
-			
-			/** Amount of simulation steps per second (amount of game loop iterations per second). */
-			public static const TICKS_PER_SECOND:int = 30;
-			private const DT:Number = 1.0 / TICKS_PER_SECOND;
-			
-			/** Window of time immediately following cell infection for launching. */
-			public static const LAUNCH_TIME_MS:Number = 2000.0;
-			
-			/** Coefficient of friction. */
-			public static const F_DRAG:Number = 0.01;
-			/** Coefficient of restitution (amount of bounce after a collision). */
-			public static const RESTITUTION:Number = 0.3;
-			
-			/** The maximum distance from virus to center of end area that will trigger player victory. */
-			public static const VICTORY_DISTANCE:Number = 20.0;
-			
-			/////////////////////////////////////////////////////////////////////////
-			// VARIABLES
-			/////////////////////////////////////////////////////////////////////////
-			
-			/** For loading modules. */
-			protected var moduleInfo:IModuleInfo;
+  <mx:Style source="styles/symptom.css" />
+  
+  <mx:Script>
+    <![CDATA[
+      import mx.events.EffectEvent;
+      import core.*;
+      import units.*;
+      import ui.*;
+      import editor.LevelEditor;
+      import utils.*;
+      import utils.LinkedList.*;
+      import __AS3__.vec.Vector;
+      import mx.controls.Image;
+      import mx.controls.Text;
+      import mx.controls.Alert;
+      import mx.controls.ProgressBar;
+      import mx.containers.Canvas;
+      import mx.containers.Panel;
+      import mx.modules.ModuleManager;
+      import mx.managers.PopUpManager;
+      import mx.events.ModuleEvent;
+      import mx.events.CloseEvent;
+      import mx.events.StateChangeEvent;
+      import mx.modules.IModuleInfo;
+      import mx.effects.Fade;
+      import mx.effects.easing.Cubic;
+      
+      /////////////////////////////////////////////////////////////////////////
+      // CONSTANTS
+      /////////////////////////////////////////////////////////////////////////
+      
+      /** Width of the game screen. */
+      public static const WIDTH:Number = 800;
+      /** Height of the game screen. */
+      public static const HEIGHT:Number = 400;
+      
+      /** Maximum length of a level. */
+      public static const MAX_LEVEL_LENGTH:Number = 4000;
+      
+      /** Amount of simulation steps per second (amount of game loop iterations per second). */
+      public static const TICKS_PER_SECOND:int = 30;
+      private const DT:Number = 1.0 / TICKS_PER_SECOND;
+      
+      /** Window of time immediately following cell infection for launching. */
+      public static const LAUNCH_TIME_MS:Number = 2000.0;
+      
+      /** Coefficient of friction. */
+      public static const F_DRAG:Number = 0.01;
+      /** Coefficient of restitution (amount of bounce after a collision). */
+      public static const RESTITUTION:Number = 0.3;
+      
+      /** The maximum distance from virus to center of end area that will trigger player victory. */
+      public static const VICTORY_DISTANCE:Number = 20.0;
+      
+      /////////////////////////////////////////////////////////////////////////
+      // VARIABLES
+      /////////////////////////////////////////////////////////////////////////
 
-			/** For uploading files. */
-			protected var file:FileReference;
-			
-			/** The level editor. */
-			protected var levelEditor:LevelEditor;
-			
-			/** Plays sound effects and music. */
-			[Bindable]
-			protected var soundManager:SoundManager;
-			
-			/** Timer for the game loop. */
-			protected var loopTimer:Timer;
-			
-			/** Timer for virus launch. */
-			protected var launchTimer:Timer;
-			
-			/** The current level being played. */
-			protected var currentLevel:Level;
-			
-			/** The player-controlled virus. */
-			protected var virus:Virus;
+      /** For uploading files. */
+      protected var file:FileReference;
+      
+      /** The level editor. */
+      protected var levelEditor:LevelEditor;
+      
+      /** Plays sound effects and music. */
+      [Bindable]
+      protected var soundManager:SoundManager;
+      
+      /** Timer for the game loop. */
+      protected var loopTimer:Timer;
+      
+      /** Timer for virus launch. */
+      protected var launchTimer:Timer;
+      
+      /** The current level being played. */
+      protected var currentLevel:Level;
+      
+      /** The player-controlled virus. */
+      protected var virus:Virus;
 
-			/** The current player input state. */
-			protected var input:InputState;
+      /** The current player input state. */
+      protected var input:InputState;
 
-			protected function init():void {
-				new FPS(fps); // DEBUG
-								
-				input = new InputState(this);
-				
-				soundManager = new SoundManager();
-				
-				// Set up level loading mechanism.
-				file = new FileReference();
-				file.addEventListener(Event.SELECT, function():void { file.load(); });
-				file.addEventListener(Event.COMPLETE, _loadLevelFile, false, 0, true);
-				
-				// Set up level editor module.
-				moduleInfo = ModuleManager.getModule("LevelEditor.swf");
-				moduleInfo.addEventListener(ModuleEvent.READY, _openLevelEditor);
+      protected function init():void {
+        new FPS(fps); // DEBUG
+                
+        input = new InputState(this);
+        
+        soundManager = new SoundManager();
+        
+        levelEditor = new LevelEditor();
+        
+        // Set up level loading mechanism.
+        file = new FileReference();
+        file.addEventListener(Event.SELECT, function():void { file.load(); });
+        file.addEventListener(Event.COMPLETE, _loadLevelFile, false, 0, true);
+        
+        addEventListener(StateChangeEvent.CURRENT_STATE_CHANGE, stateChanged);
+        
+        stage.addEventListener(KeyboardEvent.KEY_DOWN, keyListener);
+        stage.addEventListener(KeyboardEvent.KEY_UP, keyListener);
+        
+        /////////////////////////////////////////
+        // Initialize game variables.
+        /////////////////////////////////////////
+        virus = new Virus(this);
 
-				// Initialize game variables.
-				main.setTileImage(background);
-				
-				virus = new Virus(this);
+        loopTimer = new Timer(1000 / TICKS_PER_SECOND);
+        loopTimer.addEventListener(TimerEvent.TIMER, theLoop);
 
-				loopTimer = new Timer(1000 / TICKS_PER_SECOND);
-				loopTimer.addEventListener(TimerEvent.TIMER, theLoop);
+        var launchDelay:Number = 20;
+        launchTimer = new Timer(launchDelay, LAUNCH_TIME_MS / launchDelay);
+        launchTimer.addEventListener(TimerEvent.TIMER, expireLaunch);
+        
+        play();
+        
+        soundManager.playGameMusic();
+      }
+      
+      protected function keyListener(e:KeyboardEvent):void {
+        // This is handled here as opposed to being passed through InputState 
+        // because we want pause/unpause functionality to work regardless
+        // of whether the main game loop is running or not.
+              
+        if (e.keyCode == Keyboard.SPACE && e.type == KeyboardEvent.KEY_DOWN) {
+          currentState = (currentState == "pause") ? "" : "pause";
+        }
+      }
+      
+      /** Handles state changes. */
+      protected function stateChanged(e:StateChangeEvent = null):void {
+        if (currentState != "") {
+          launchTimer.stop();
+          loopTimer.stop();
+          
+          virus.pause();
+        } else {
+          loopTimer.start();
+          
+          virus.resume();
+        }
+      }
+      
+      /** Starts a new game to play. */
+      protected function play(xmlLevel:XML = null):void {          
+        if (xmlLevel == null) {        
+          xmlLevel = Level.getLevel(0);
+        }
+        
+        try {
+          currentLevel = new Level(xmlLevel);
+        } catch (e:Error) {
+          Alert.show(e.message, "Symptom > Load level");
+          return;
+        }
+        
+        main.removeAllChildren();
+        main.alpha = 0.0;
+        main.width = currentLevel.length;
+        main.x = main.y = 0;
+        
+        switch (currentLevel.style) {
+          case Level.TITLE:
+            main.setTileImage(title);
+            break;
+          case Level.STANDARD:
+            main.setTileImage(standard);
+            break;
+          default:
+            throw new Error("Unrecognized level style.");
+            break;
+        }
+        
+        // Virus needs to be first in list for proper collision handling.
+        // This is because of how the pair-wise collisions are processed 
+        // (a dubious constraint for coding convenience).
+        currentLevel.bodies.addFirst(virus);
+        
+        // Load level data.        
+        for each (var ea:EndArea in currentLevel.endAreas) {
+          main.addChild(ea);
+        }
+        
+        for (var I:LinkedListIterator = new LinkedListIterator(currentLevel.bodies); I.hasNext();) {
+          main.addChild(I.next().data as Body);
+        }
+        
+        virus.reset();
+        virus.x = 100;
+        virus.y = height/2 - virus.height/2;
+        main.addChild(virus);
+        virus.resume();
+        
+        // Start game.
+        currentState = "";
+                
+        loopTimer.start();
+        
+        levelTransition.play([main], true);
+      }
+      
+      /** Ends the game. */
+      protected function endGame(isWin:Boolean):void {
+        launchTimer.stop();      
+        loopTimer.stop();
+        virus.pause();
+        
+        // If player won and next level exists, advance to it.
+        // Otherwise, reload first level.
+        var f:Function = function():void { 
+          var next:XML = Level.getLevel(currentLevel.nextLevel);
+          
+          if (isWin && next != null) {
+            play(next); 
+          } else {
+            play();
+          }
+          
+          levelTransition.removeEventListener(EffectEvent.EFFECT_END, arguments.callee);
+          }
+          
+        levelTransition.addEventListener(EffectEvent.EFFECT_END, f);
+        levelTransition.play([main]);
+      }
 
-				var launchDelay:Number = 20;
-				launchTimer = new Timer(launchDelay, LAUNCH_TIME_MS / launchDelay);
-				launchTimer.addEventListener(TimerEvent.TIMER, expireLaunch);
-				
-				// Go to splash screen.
-				addEventListener(StateChangeEvent.CURRENT_STATE_CHANGE, stateChanged);
-				currentState = "splash";
-			}
-			
-			/** Handles state changes. */
-			protected function stateChanged(e:StateChangeEvent = null):void {
-				if (currentState == "splash") {
-					soundManager.playSplashMusic();
-				} else if (currentState == "") {
-					soundManager.playGameMusic();
-				}
-			}
-			
-			/** Starts a new game to play. */
-			protected function play(xmlLevel:XML = null):void {					
-				if (xmlLevel == null) {				
-					xmlLevel = Level.getLevel(0);
-				}
-				
-				try {
-					currentLevel = new Level(xmlLevel);
-				} catch (e:Error) {
-					Alert.show(e.message, "Symptom > Load level");
-					return;
-				}
-				
-				main.removeAllChildren();
-				
-				main.height = currentLevel.height;
-				main.y = height - main.height;
-				
-				// Virus needs to be first in list for proper collision handling.
-				// This is because of how the pair-wise collisions are processed 
-				// (a dubious constraint for coding convenience).
-				currentLevel.bodies.addFirst(virus);
-				
-				// Load level data.				
-				for each (var ea:EndArea in currentLevel.endAreas) {
-					main.addChild(ea);
-				}
-				
-				for (var I:LinkedListIterator = new LinkedListIterator(currentLevel.bodies); I.hasNext();) {
-					main.addChild(I.next().data as Body);
-				}
-				
-				virus.reset();
-				virus.x = main.width/2 - virus.width/2;
-				virus.y = main.height - virus.height - 5;
-				main.addChild(virus);
-				
-				// Start game.
-				currentState = "";
-								
-				loopTimer.start();
-			}
-			
-			// Opens the level editor.
-			private function _openLevelEditor(e:ModuleEvent):void {
-				levelEditor = moduleInfo.factory.create() as LevelEditor;
-				
-				PopUpManager.addPopUp(levelEditor, this, false);
-				PopUpManager.centerPopUp(levelEditor);
-			}
-			
-			// Listener to load level data from a pre-selected file. Should not be called directly.
-			private function _loadLevelFile(e:Event):void {
-				var buffer:ByteArray = file.data;
-				
-				try {
-					var level:XML = XML(buffer.readUTFBytes(buffer.bytesAvailable));
-				} catch (e:Error) {
-					Alert.show("Selected file has invalid content!", "Symptom > Load custom level");
-					return;
-				}
-				
-				play(level);
-			}
-			
-			/** Ends the game. */
-			protected function endGame(isWin:Boolean):void {
-				loopTimer.stop();
-				launchTimer.stop();
+      /** Checks launch timer expiration and handles launching. */
+      protected function expireLaunch(e:TimerEvent = null):void {
+        if (e != null) {
+          // A non-null argument means that this function was called
+          // automatically by a timer. In that case, only expire the launch
+          // when the timer expires.
+          if (launchTimer.currentCount < launchTimer.repeatCount) {
+            return;
+          }
+        }
+        
+        soundManager.playRandomLaunch();
+        
+        virus.graphics.clear();
+        virus.visible = true;
+        
+        launchTimer.reset();
+        
+        // Remove infected body from game.
+        var i:Body = virus.infected.data as Body;
+        currentLevel.bodies.remove(virus.infected);
+        i.setStyle("removedEffect", fade);
+        main.removeChild(i);
+        
+        virus.infected = null;
+      }
+      
+      /** The main game loop. */
+      protected function theLoop(e:TimerEvent):void {
+        // Some variables for reuse.
+        var i:int, j:int;
+        var b:Body, bi:Body, bj:Body;
+        var img:Image;
+        var I:LinkedListIterator, J:LinkedListIterator;
+        var ni:Node, nj:Node;
+        var ea:EndArea;
+        
+        var virusCenter:Vector2    = virus.center;
+        var virusDirection:Vector2 = virus.direction;
+        var virusSpeed:Number      = virus.v.length();
+        
+        /////////////////////////////////////////
+        // CHECK FOR VICTORY CONDITION
+        /////////////////////////////////////////
+        
+        for each (ea in currentLevel.endAreas) {            
+          var eac:Vector2 = new Vector2(ea.x + ea.width/2, ea.y + ea.height/2);
+          
+          if (virusCenter.subtract(eac).length() < VICTORY_DISTANCE) {
+            endGame(true);
+          }
+        }
+        
+        /////////////////////////////////////////
+        // CLEAR FORCES
+        /////////////////////////////////////////
 
-				var toSplash:Function = function(e:CloseEvent):void { currentState = "splash"; };
-				if (isWin) {						
-					Alert.show("You win!", "Symptom", Alert.OK, this, toSplash);
-				} else {
-					Alert.show("You lost!", "Symptom", Alert.OK, this, toSplash);
-				}
-			}
+        for (I = new LinkedListIterator(currentLevel.bodies); I.hasNext();) {
+          b = I.next().data as Body;
+          
+          b.F.zero();
+        }
+        
+        /////////////////////////////////////////
+        // ADD FORCES
+        /////////////////////////////////////////
+        
+        // VIRUS MOVEMENT.
+        if (virus.infected == null) {
+          var move:Vector2 = new Vector2(virusDirection.x * Virus.F_MOVE, virusDirection.y * Virus.F_MOVE);
+          // Taper acceleration as virus approaches max speed.
+          if (virusDirection.dot(virus.v) > 0) {
+            move.scale((Virus.MAX_SPEED - virusSpeed)/Virus.MAX_SPEED);
+          }
+          
+          if (input.isMouseDown) {
+            virus.F.x += move.x;
+            virus.F.y += move.y;
+          }
+        } else {
+          // Launch by applying an impulse.
+          if (input.isMouseDown && !input.wasMouseDown) {
+            expireLaunch();
+            
+            virus.v.acc(virusDirection, Virus.MAX_SPEED);
+          }
+        }
+        
+        // WBC ATTRACTION.
+        for (I = new LinkedListIterator(currentLevel.bodies); I.hasNext();) {
+          b = I.next().data as Body;
+          
+          if (b is WBC) {
+            b.graphics.clear();  
+          
+            if (virus.infected == null)
+              (b as WBC).hunt(virusCenter);
+          }
+        }
+        
+        // DRAG.
+        for (I = new LinkedListIterator(currentLevel.bodies); I.hasNext();) {
+          b = I.next().data as Body;
+          
+          b.F.x -= b.v.x * F_DRAG;
+          b.F.y -= b.v.y * F_DRAG;
+        }
+        
+        // COLLISION PENALTY FORCES.
+        var buffer:Number = 1;
+        var k:Number = 10.0;
 
-			/** Checks launch timer expiration and handles launching. */
-			protected function expireLaunch(e:TimerEvent = null):void {
-				if (e != null) {
-					// Draw launch progress indicator ring.
-					var radius:Number = 8;
-					var alpha:Number = 1.0 - (launchTimer.currentCount / launchTimer.repeatCount);
-					
-					virus.graphics.clear();
-					virus.graphics.beginFill(0x00aa00);
-					virus.graphics.drawCircle(virus.width/2, -radius, radius*alpha);
-					
-					if (launchTimer.currentCount < launchTimer.repeatCount) {
-						return;
-					}
-				}
-				
-				soundManager.playRandomLaunch();
-				
-				virus.graphics.clear();
-				virus.toggleArrow(false);
-				
-				launchTimer.reset();
-				
-				// Remove infected body from game.
-				var i:Body = virus.infected.data as Body;
-				currentLevel.bodies.remove(virus.infected);
-				i.setStyle("removedEffect", fade);
-				main.removeChild(i);
-				
-				virus.infected = null;
-			}
-			
-			/** The main game loop. */
-			protected function theLoop(e:TimerEvent):void {
-				// Some variables for reuse.
-				var i:int, j:int;
-				var b:Body, bi:Body, bj:Body;
-				var img:Image;
-				var I:LinkedListIterator, J:LinkedListIterator;
-				var ni:Node, nj:Node;
-				var ea:EndArea;
-				
-				var virusCenter:Vector2    = virus.getCenter();
-				var virusDirection:Vector2 = virus.getDirection();
-				var virusSpeed:Number      = virus.v.length();
-				
-				/////////////////////////////////////////
-				// CHECK FOR VICTORY CONDITION
-				/////////////////////////////////////////
-				
-				for each (ea in currentLevel.endAreas) {						
-					var eac:Vector2 = new Vector2(ea.x + ea.width/2, ea.y + ea.height/2);
-					
-					if (virusCenter.subtract(eac).length() < VICTORY_DISTANCE) {
-						endGame(true);
-					}
-				}
-				
-				/////////////////////////////////////////
-				// CLEAR FORCES
-				/////////////////////////////////////////
+        i = 0;
+        for (I = new LinkedListIterator(currentLevel.bodies); I.hasNext(); i++) {
+          bi = I.next().data as Body;
+          
+          for (J = new LinkedListIterator(currentLevel.bodies, i+1); J.hasNext();) {
+            nj = J.next();
+            bj = nj.data as Body;
+            
+            var p:Vector2 = (bi as IBoundingSphere).center;
+            var r:Number  = (bi as IBoundingSphere).radius + buffer;
+            var q:Vector2 = (bj as IBoundingSphere).center;
+            var s:Number  = (bj as IBoundingSphere).radius + buffer;
+            
+            var normal:Vector2 = Geometry.intersect(p, r, q, s);
+            if (normal != null) {
+              if (bi == virus) {
+                if (virus.infected != null) {
+                  break;
+                }
+                
+                if (bj is WBC) {
+                  endGame(false);
+                  break;
+                }
+                
+                if (bj is RBC && normal.dot(virusDirection) > Geometry.COS_30 && virus.dna == (bj as RBC).color) {
+                  soundManager.playRandomInfect();
+                  
+                  bj.alpha = 0.5;
+                  
+                  virus.infected = nj;
+                  
+                  virus.F.zero();
+                  virus.v.zero();
+                  virus.changeDNA((bj as RBC).dna);
+                  virus.visible = false;
 
-				for (I = new LinkedListIterator(currentLevel.bodies); I.hasNext();) {
-					b = I.next().data as Body;
-					
-					b.F.zero();
-				}
-				
-				/////////////////////////////////////////
-				// ADD FORCES
-				/////////////////////////////////////////
-				
-				// VIRUS MOVEMENT.
-				if (virus.infected == null) {
-					// WASD movement.
-					var move:Vector2 = new Vector2(virusDirection.x * Virus.F_MOVE, virusDirection.y * Virus.F_MOVE);
-					if (virusDirection.dot(virus.v) > 0) {
-						move.scale((Virus.MAX_SPEED - virusSpeed)/Virus.MAX_SPEED);
-					}
-								
-					if (input.isUpPressed) {
-						virus.F.x += move.x;
-						virus.F.y += move.y;
-					} 
-					if (input.isDownPressed) {
-						virus.F.x -= move.x;
-						virus.F.y -= move.y;
-					}
-					if (input.isLeftPressed) {
-						virus.F.x += move.y;
-						virus.F.y -= move.x;
-					}
-					if (input.isRightPressed) {
-						virus.F.x -= move.y;
-						virus.F.y += move.x;
-					}
-				} else {
-					// Launch by applying an impulse.
-					if (input.isSpacePressed && !input.wasSpacePressed) {
-						expireLaunch();
-						
-						virus.v.acc(virusDirection, Virus.MAX_SPEED);
-					}
-				}
-				
-				input.wasSpacePressed = input.isSpacePressed;
-				
-				// WBC ATTRACTION.
-				for (I = new LinkedListIterator(currentLevel.bodies); I.hasNext();) {
-					b = I.next().data as Body;
-					
-					if (b is WBC) {
-						b.graphics.clear();
-						
-						var wc:Vector2 = (b as IBoundingSphere).getCenter();
-						
-						var range:Number = (b as WBC).range;
-						var v:Vector2 = virusCenter.subtract(wc);
-						var lengthV:Number = v.length();
-						
-						b.graphics.lineStyle(1, 0x9a8685);
-						b.graphics.drawCircle(b.width/2, b.height/2, range);
-						
-						// If virus is within range, then start "hunting" it.
-						if (lengthV < range && virus.infected == null) {
-							v.normalize();
-							b.F.acc(v, WBC.ATTRACTION_FORCE);
-							
-							b.graphics.lineStyle();
-							b.graphics.beginFill(0xff0000, 1.0);
-							b.graphics.drawCircle(
-								b.width/2 + v.x * b.width/1.5, 
-								b.height/2 + v.y * b.height/1.5, 
-								(range - lengthV)/range * 10
-								);
-						}
-						
-						if (b.v.length() > WBC.MAX_SPEED) {
-							b.v.normalize(WBC.MAX_SPEED);
-						}
-					}
-				}
-				
-				// DRAG.
-				for (I = new LinkedListIterator(currentLevel.bodies); I.hasNext();) {
-					b = I.next().data as Body;
-					
-					b.F.x -= b.v.x * F_DRAG;
-					b.F.y -= b.v.y * F_DRAG;
-				}
-				
-				// COLLISION PENALTY FORCES.
-				var buffer:Number = 1;
-				var k:Number = 10.0;
+                  launchTimer.start();
+                  
+                  break;
+                }
+              }
+              
+              var d:Number = normal.length();
+              
+              normal.normalize();
+              var relativeV:Vector2 = bi.v.subtract(bj.v);
+              
+              // If collided bodies are already separating, don't apply force.
+              if (relativeV.dot(normal) < 0) {
+                continue;
+              }
+              
+              bi.F.acc(normal, -k * d);
+              bj.F.acc(normal,  k * d);
+            }
+          }
+        }
+        
+        /////////////////////////////////////////
+        // UPDATE
+        /////////////////////////////////////////
+        
+        input.update();
+        
+        for (I = new LinkedListIterator(currentLevel.bodies); I.hasNext();) {
+          b = I.next().data as Body;
+          
+          b.applyF();
+          
+          b.step(DT);
+        }
+        
+        // If infecting, move virus to infected body center.
+        if (virus.infected != null) {
+          var pv:Vector2 = (virus as IBoundingSphere).center;
+          var pi:Vector2 = (virus.infected.data as IBoundingSphere).center;
+          
+          virus.x += pi.x - pv.x;
+          virus.y += pi.y - pv.y;
+        }
+        
+        if (virusSpeed > Virus.MAX_SPEED) {
+          virus.v.normalize(Virus.MAX_SPEED);
+        }
+        
+        /////////////////////////////////////////
+        // CONFINE TO BOUNDS
+        /////////////////////////////////////////
+        
+        for (I = new LinkedListIterator(currentLevel.bodies); I.hasNext();) {
+          b = I.next().data as Body;
+          
+          var center:Vector2 = (b as IBoundingSphere).center;
+          var radius:Number = (b as IBoundingSphere).radius;
+          
+          if (center.x - radius < 0) {
+            b.x += radius - center.x;
+            b.v.x *= -RESTITUTION;
+          }
+          
+          if (center.x + radius > main.width) {
+            b.x -= center.x + radius - main.width;
+            b.v.x *= -RESTITUTION;
+          }
+          
+          if (center.y < radius) {
+            b.y += radius - center.y;
+            b.v.y *= -RESTITUTION;
+          } 
+          
+          // Make sure virus does not go off bottom of viewable screen,
+          // for other bodies just confine to level bounds.
+          var maxHeight:Number = (b == virus) ? height - main.y : main.height;
+          if (center.y > maxHeight - radius) {
+            b.y -= center.y - (maxHeight - radius);
+            b.v.y *= -RESTITUTION;
+          }
+        }
+        
+        /////////////////////////////////////////
+        // SCROLL SCREEN
+        /////////////////////////////////////////
 
-				i = 0;
-				for (I = new LinkedListIterator(currentLevel.bodies); I.hasNext(); i++) {
-					bi = I.next().data as Body;
-					
-					for (J = new LinkedListIterator(currentLevel.bodies, i+1); J.hasNext();) {
-						nj = J.next();
-						bj = nj.data as Body;
-						
-						var p:Vector2 = (bi as IBoundingSphere).getCenter();
-						var r:Number  = (bi as IBoundingSphere).getRadius() + buffer;
-						var q:Vector2 = (bj as IBoundingSphere).getCenter();
-						var s:Number  = (bj as IBoundingSphere).getRadius() + buffer;
-						
-						var normal:Vector2 = Geometry.intersect(p, r, q, s);
-						if (normal != null) {
-							if (bi == virus) {
-								if (virus.infected != null) {
-									break;
-								}
-								
-								if (bj is WBC) {
-									endGame(false);
-									break;
-								}
-								
-								if (bj is RBC && normal.dot(virusDirection) > Geometry.COS_30 && virus.dna == (bj as RBC).color) {
-									soundManager.playRandomInfect();
-									
-									virus.infected = nj;
-									bj.alpha = 0.5;
-									
-									virus.F.zero();
-									virus.v.zero();
-									virus.changeDNA((bj as RBC).dna);
-									virus.toggleArrow(true);
-
-									launchTimer.start();
-									
-									break;
-								}
-							}
-							
-							var d:Number = normal.length();
-							
-							normal.normalize();
-							var relativeV:Vector2 = bi.v.subtract(bj.v);
-							
-							// If collided bodies are already separating, don't apply force.
-							if (relativeV.dot(normal) < 0) {
-								continue;
-							}
-							
-							bi.F.acc(normal, -k * d);
-							bj.F.acc(normal,  k * d);
-						}
-					}
-				}
-				
-				/////////////////////////////////////////
-				// UPDATE
-				/////////////////////////////////////////
-				
-				for (I = new LinkedListIterator(currentLevel.bodies); I.hasNext();) {
-					b = I.next().data as Body;
-					
-					b.applyF();
-					
-					b.step(DT);
-				}
-				
-				// If infecting, move virus to infected body center.
-				if (virus.infected != null) {
-					var pv:Vector2 = (virus as IBoundingSphere).getCenter();
-					var pi:Vector2 = (virus.infected.data as IBoundingSphere).getCenter();
-					
-					virus.x += pi.x - pv.x;
-					virus.y += pi.y - pv.y;
-				}
-				
-				if (virusSpeed > Virus.MAX_SPEED) {
-					virus.v.normalize(Virus.MAX_SPEED);
-				}
-				
-				/////////////////////////////////////////
-				// CONFINE TO BOUNDS
-				/////////////////////////////////////////
-				
-				for (I = new LinkedListIterator(currentLevel.bodies); I.hasNext();) {
-					b = I.next().data as Body;
-					
-					var center:Vector2 = (b as IBoundingSphere).getCenter();
-					var radius:Number = (b as IBoundingSphere).getRadius();
-					
-					if (center.x < radius) {
-						b.x += radius - center.x;
-						b.v.x *= -RESTITUTION;
-					}
-					
-					if (center.x > main.width - radius) {
-						b.x -= center.x - (main.width - radius);
-						b.v.x *= -RESTITUTION;
-					}
-					
-					if (center.y < radius) {
-						b.y += radius - center.y;
-						b.v.y *= -RESTITUTION;
-					} 
-					
-					// Make sure virus does not go off bottom of viewable screen,
-					// for other bodies just confine to level bounds.
-					var maxHeight:Number = (b == virus) ? height - main.y : main.height;
-					if (center.y > maxHeight - radius) {
-						b.y -= center.y - (maxHeight - radius);
-						b.v.y *= -RESTITUTION;
-					}
-				}
-				
-				/////////////////////////////////////////
-				// SCROLL SCREEN
-				/////////////////////////////////////////
-				
-				// Scroll screen according to virus position.
-				virusCenter = virus.getCenter();
-				if (main.y < 0 && (virusCenter.y + main.y) < height/2) {
-					main.y = Math.min(0, height/2 - virusCenter.y);
-				}
-				
-				/////////////////////////////////////////
-				// TUTORIALS & EVENT TRIGGERS
-				/////////////////////////////////////////
-				
-				currentLevel.triggerEvents(virus, main);
-			}
-		]]>
-	</mx:Script>
-	
+        var epsilon:Number = 10;
+        
+        // Scroll screen according to virus position.
+        virusCenter = virus.center;
+        if (virusCenter.x > width/2 && main.x > -main.width + width + epsilon) {
+          main.x = Math.min(width/2 - virusCenter.x, main.x);
+        }
+        
+        /////////////////////////////////////////
+        // TUTORIALS & EVENT TRIGGERS
+        /////////////////////////////////////////
+        
+        currentLevel.triggerEvents(virus, main);
+      }
+      
+      protected function openLevelEditor():void {
+        currentState = "pause";
+        
+        PopUpManager.addPopUp(levelEditor, this, false);
+        PopUpManager.centerPopUp(levelEditor);
+      }
+      
+      // Listener to load level data from a pre-selected file. Should not be called directly.
+      private function _loadLevelFile(e:Event):void {
+        var buffer:ByteArray = file.data;
+        
+        try {
+          var level:XML = XML(buffer.readUTFBytes(buffer.bytesAvailable));
+        } catch (e:Error) {
+          Alert.show("Selected file has invalid content!", "Symptom > Load custom level");
+          return;
+        }
+        
+        play(level);
+      }
+    ]]>
+  </mx:Script>
+  
   <!--
   /////////////////////////////////////////////////////////
   // COMPONENTS
   /////////////////////////////////////////////////////////
   -->  
-  <mx:Label id="fps" />
   
   <!--- The active playing screen. -->
   <ui:TilingCanvas id="main"
-  	x="200"
-  	width="{LEVEL_WIDTH}" height="{height}"
-  	horizontalScrollPolicy="off" verticalScrollPolicy="off" />
+    height="400"
+    horizontalScrollPolicy="off" verticalScrollPolicy="off" />
+    
+  <!--- Opens level editor. -->
+  <mx:Image id="hammer"
+    x="770" y="5"
+    source="@Embed(source='assets/hammer.swf')" 
+    toolTip="Level editor"
+    click="openLevelEditor();" />
+    
+  <!--- Opens dialog for loading a custom level. -->
+  <mx:Image id="folder"
+    x="772" y="35"
+    source="@Embed(source='assets/folder.swf')"
+    toolTip="Load custom level"
+    click="file.browse([new FileFilter('Symptom Level', '*.xml')]);" />
   
-  <mx:Image id="background"
-  	visible="false"
-  	source="@Embed(source='assets/background.jpg')" />
-	
+  <!-- DEBUG -->
+  <mx:Label id="fps" color="white" />
+  
+  <!--
+  /////////////////////////////////////////////////////////
+  // BACKGROUND IMAGES
+  /////////////////////////////////////////////////////////
+  -->  
+    
+  <!-- Title screen background. For loading into a TilingCanvas only. -->
+  <mx:Image id="title"
+    visible="false"
+    source="@Embed(source='assets/levels/title.jpg')" />
+  
+  <!--- Standard vertical-tiling background image. For loading into a TilingCanvas only. -->
+  <mx:Image id="standard"
+    visible="false"
+    source="@Embed(source='assets/levels/background1.jpg')" />
+  
   <!--
   /////////////////////////////////////////////////////////
   // DECLARATIONS
   /////////////////////////////////////////////////////////
   -->
-	<!--- Effect for fading out destroyed bodies. -->
-	<mx:Fade id="fade" alphaTo="0.0" easingFunction="{Cubic.easeIn}" />
-	
-	<mx:NumberFormatter id="numberFormatter" precision="2" />
-	
+  
+  <!--- Effect for fading out destroyed bodies. -->
+  <mx:Fade id="fade" alphaTo="0.0" easingFunction="{Cubic.easeIn}" />
+  
+  <!--- Effect for transitioning between levels. -->
+  <mx:Fade id="levelTransition" alphaFrom="1.0" alphaTo="0.0" easingFunction="{Cubic.easeOut}" duration="1000" />
+  
   <!--
   /////////////////////////////////////////////////////////
   // STATES
   /////////////////////////////////////////////////////////
   -->
+
   <mx:states>
-  	<mx:State name="splash">
-  		<mx:RemoveChild target="{main}" />
-  		
-  		<mx:AddChild>
-  			<mx:Panel 
-  				x="250" y="50"
-  				width="300" height="480"
-  				horizontalAlign="center" 
-  				horizontalScrollPolicy="off" verticalScrollPolicy="off"
-  				layout="vertical"
-  				cornerRadius="0">
-  				
-  				<mx:Image source="@Embed(source='assets/logo.png')" />
-  				
-  				<mx:Text width="100%" 
-  					fontSize="9" textAlign="center" fontAntiAliasType="normal" fontSharpness="400"
-  					paddingTop="10" paddingBottom="15" 
-  					selectable="false">
-  					<mx:htmlText>
-	  					<![CDATA[<i>Symptom</i> is a 2D scroller with a twist. You're the virus!<br /><br />Use your <b>MOUSE</b> to guide the virus and the <b>WASD</b> keys to move. Infect a cell by moving forward towards it - once inside, "launch" away by pressing the <b>SPACE</b> bar!]]>
-  					</mx:htmlText>
-  				</mx:Text>
-  				
-  				<mx:Image source="@Embed(source='assets/directions.png')" />
-  				
-  				<mx:Spacer height="10" />
-  				
-	  			<mx:Button label="Play!" 
-	  				width="100%" height="50" 
-	  				click="play();" />
-	  			<mx:Button label="Load custom level"
-	  				width="100%" height="30"
-	  				mouseDownEffect="{soundManager.buttonEffect}"
-	  				click="file.browse([new FileFilter('Symptom Level', '*.xml')]);" />
-	  			<mx:Button label="Create your own level!" 
-	  				width="100%" height="30"
-	  				mouseDownEffect="{soundManager.buttonEffect}"
-	  				click="moduleInfo.load();" />
-  			</mx:Panel>
-  		</mx:AddChild>
-  	</mx:State>
+    <mx:State name="pause">
+      <mx:AddChild>
+        <mx:Canvas id="modal" 
+          width="100%" height="100%" 
+          backgroundColor="black" 
+          alpha="0.5" />
+      </mx:AddChild>
+      <mx:AddChild>
+          <mx:Label
+            x="{width/2 - 10}" y="{height/2 - 10}"
+            text="(SPACE)"
+            fontWeight="bold"
+            color="white" />
+      </mx:AddChild>
+    </mx:State>
   </mx:states>
-	
+  
 </mx:Application>
