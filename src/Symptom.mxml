@@ -55,7 +55,8 @@ either expressed or implied, of William Chou.
   backgroundGradientAlphas="{[0.0, 0.0]}"
   horizontalScrollPolicy="off"  verticalScrollPolicy="off"
   frameRate="30"
-  applicationComplete="init();"  viewSourceURL="srcview/index.html">
+  applicationComplete="init();" 
+  viewSourceURL="srcview/index.html">
 
   <mx:Style source="styles/symptom.css" />
   
