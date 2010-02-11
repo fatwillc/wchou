@@ -16,7 +16,7 @@ package units {
     
     /** Force of virus movement. */
     public static const F_MOVE:Number = 6.0;
-    /** Maximum speed of the virus. */
+    /** Maximum attainable speed of the virus. */
     public static const MAX_SPEED:Number = 400.0;
     
     /** Offset to center of virus body. */
@@ -56,6 +56,9 @@ package units {
     private var green:Class;
     [Embed(source='assets/virus/virus_yellow.swf')]
     private var yellow:Class;
+    
+    [Embed(source='assets/virus/arrow.swf')]
+    private var arrow:Class;
     
     public function Virus(symptom:Symptom)  {
       super();
@@ -111,6 +114,14 @@ package units {
           source = yellow; break;
         default:
           throw new Error("Unrecognized 'dna' parameter.");
+      }
+    }
+    
+    public function toggleInfect(isInfect:Boolean):void {
+      if (isInfect) {
+        source = null;
+      } else {
+        changeDNA(dna);
       }
     }
     

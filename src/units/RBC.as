@@ -66,6 +66,8 @@ package units {
       
       setColors(Color.RED, Color.RED);
       
+      mass = 5;
+      
       cacheAsBitmap = true;
     }
     

@@ -101,6 +101,12 @@ either expressed or implied, of William Chou.
       public static const TICKS_PER_SECOND:int = 30;
       private const DT:Number = 1.0 / TICKS_PER_SECOND;
       
+      /** 
+       * The ratio of background movement to foreground movement, 
+       * i.e. for every 1 pixel of foreground movement, the amount of background movement. 
+       */
+      public static const BACKGROUND_SCALE_FACTOR:Number = 0.85;
+      
       /** Window of time immediately following cell infection for launching. */
       public static const LAUNCH_TIME_MS:Number = 2000.0;
       
@@ -202,29 +208,24 @@ either expressed or implied, of William Chou.
       }
       
       /** Starts a new game to play. */
-      protected function play(xmlLevel:XML = null):void {          
-        if (xmlLevel == null) {        
-          xmlLevel = Level.getLevel(0);
-        }
+      protected function play(level:Level = null):void {      
+        // If a custom level is provided, load it. Otherwise, load level 0.    
+        currentLevel = (level != null) ? level : Level.getLevel(0);
         
-        try {
-          currentLevel = new Level(xmlLevel);
-        } catch (e:Error) {
-          Alert.show(e.message, "Symptom > Load level");
-          return;
-        }
+        foreground.removeAllChildren();
+        foreground.alpha = 0.0;
+        foreground.width = currentLevel.length;
+        foreground.x = foreground.y = 0;
         
-        main.removeAllChildren();
-        main.alpha = 0.0;
-        main.width = currentLevel.length;
-        main.x = main.y = 0;
+        background.width = foreground.width / BACKGROUND_SCALE_FACTOR;
+        background.x = background.y = 0;
         
         switch (currentLevel.style) {
           case Level.TITLE:
-            main.setTileImage(title);
+            background.setTileImage(skin);
             break;
           case Level.STANDARD:
-            main.setTileImage(standard);
+            background.setTileImage(standard);
             break;
           default:
             throw new Error("Unrecognized level style.");
@@ -236,27 +237,35 @@ either expressed or implied, of William Chou.
         // (a dubious constraint for coding convenience).
         currentLevel.bodies.addFirst(virus);
         
-        // Load level data.        
+        /////////////////////////////////////////
+        // Load level data.
+        /////////////////////////////////////////
+        
+        for each (var img:Image in currentLevel.images) {
+          foreground.addChild(img);
+        }
+        
         for each (var ea:EndArea in currentLevel.endAreas) {
-          main.addChild(ea);
+          foreground.addChild(ea);
         }
         
         for (var I:LinkedListIterator = new LinkedListIterator(currentLevel.bodies); I.hasNext();) {
-          main.addChild(I.next().data as Body);
+          foreground.addChild(I.next().data as Body);
         }
         
         virus.reset();
         virus.x = 100;
         virus.y = height/2 - virus.height/2;
-        main.addChild(virus);
+        foreground.addChild(virus);
         virus.resume();
         
+        /////////////////////////////////////////
         // Start game.
-        currentState = "";
-                
-        loopTimer.start();
+        /////////////////////////////////////////
+                        
+        levelTransition.play([foreground, background], true);
         
-        levelTransition.play([main], true);
+        loopTimer.start();
       }
       
       /** Ends the game. */
@@ -268,7 +277,7 @@ either expressed or implied, of William Chou.
         // If player won and next level exists, advance to it.
         // Otherwise, reload first level.
         var f:Function = function():void { 
-          var next:XML = Level.getLevel(currentLevel.nextLevel);
+          var next:Level = Level.getLevel(currentLevel.nextLevel);
           
           if (isWin && next != null) {
             play(next); 
@@ -280,7 +289,7 @@ either expressed or implied, of William Chou.
           }
           
         levelTransition.addEventListener(EffectEvent.EFFECT_END, f);
-        levelTransition.play([main]);
+        levelTransition.play([foreground, background]);
       }
 
       /** Checks launch timer expiration and handles launching. */
@@ -289,6 +298,12 @@ either expressed or implied, of William Chou.
           // A non-null argument means that this function was called
           // automatically by a timer. In that case, only expire the launch
           // when the timer expires.
+          
+          // Draw direction indicator.
+          virus.graphics.clear();
+          virus.graphics.beginFill(0xffffff, 0.75);
+          virus.graphics.drawCircle(virus.width/2, -5, 3);
+          
           if (launchTimer.currentCount < launchTimer.repeatCount) {
             return;
           }
@@ -297,7 +312,7 @@ either expressed or implied, of William Chou.
         soundManager.playRandomLaunch();
         
         virus.graphics.clear();
-        virus.visible = true;
+        virus.toggleInfect(false);
         
         launchTimer.reset();
         
@@ -305,7 +320,7 @@ either expressed or implied, of William Chou.
         var i:Body = virus.infected.data as Body;
         currentLevel.bodies.remove(virus.infected);
         i.setStyle("removedEffect", fade);
-        main.removeChild(i);
+        foreground.removeChild(i);
         
         virus.infected = null;
       }
@@ -430,7 +445,7 @@ either expressed or implied, of William Chou.
                   virus.F.zero();
                   virus.v.zero();
                   virus.changeDNA((bj as RBC).dna);
-                  virus.visible = false;
+                  virus.toggleInfect(true);
 
                   launchTimer.start();
                   
@@ -496,8 +511,8 @@ either expressed or implied, of William Chou.
             b.v.x *= -RESTITUTION;
           }
           
-          if (center.x + radius > main.width) {
-            b.x -= center.x + radius - main.width;
+          if (center.x + radius > foreground.width) {
+            b.x -= center.x + radius - foreground.width;
             b.v.x *= -RESTITUTION;
           }
           
@@ -508,7 +523,7 @@ either expressed or implied, of William Chou.
           
           // Make sure virus does not go off bottom of viewable screen,
           // for other bodies just confine to level bounds.
-          var maxHeight:Number = (b == virus) ? height - main.y : main.height;
+          var maxHeight:Number = (b == virus) ? height - foreground.y : foreground.height;
           if (center.y > maxHeight - radius) {
             b.y -= center.y - (maxHeight - radius);
             b.v.y *= -RESTITUTION;
@@ -523,15 +538,12 @@ either expressed or implied, of William Chou.
         
         // Scroll screen according to virus position.
         virusCenter = virus.center;
-        if (virusCenter.x > width/2 && main.x > -main.width + width + epsilon) {
-          main.x = Math.min(width/2 - virusCenter.x, main.x);
+        if (virusCenter.x > width/2 && foreground.x > -foreground.width + width + epsilon) {
+          var delta:Number = Math.min(0, width/2 - virusCenter.x - foreground.x);
+          
+          foreground.x += delta;
+          background.x += delta * BACKGROUND_SCALE_FACTOR;
         }
-        
-        /////////////////////////////////////////
-        // TUTORIALS & EVENT TRIGGERS
-        /////////////////////////////////////////
-        
-        currentLevel.triggerEvents(virus, main);
       }
       
       protected function openLevelEditor():void {
@@ -552,7 +564,7 @@ either expressed or implied, of William Chou.
           return;
         }
         
-        play(level);
+        play(new Level(level));
       }
     ]]>
   </mx:Script>
@@ -562,9 +574,14 @@ either expressed or implied, of William Chou.
   // COMPONENTS
   /////////////////////////////////////////////////////////
   -->  
+    
+  <!--- Background contains tiling background image with parallax movement. -->
+  <ui:TilingCanvas id="background"
+    height="400"
+    horizontalScrollPolicy="off" verticalScrollPolicy="off" />
   
-  <!--- The active playing screen. -->
-  <ui:TilingCanvas id="main"
+  <!--- Foreground contains virus and interactive bodies. -->
+  <mx:Canvas id="foreground"
     height="400"
     horizontalScrollPolicy="off" verticalScrollPolicy="off" />
     
@@ -591,15 +608,15 @@ either expressed or implied, of William Chou.
   /////////////////////////////////////////////////////////
   -->  
     
-  <!-- Title screen background. For loading into a TilingCanvas only. -->
-  <mx:Image id="title"
+  <!-- Skin background. For loading into a TilingCanvas only. -->
+  <mx:Image id="skin"
     visible="false"
-    source="@Embed(source='assets/levels/title.jpg')" />
+    source="@Embed(source='assets/levels/background_skin.jpg')" />
   
-  <!--- Standard vertical-tiling background image. For loading into a TilingCanvas only. -->
+  <!--- Standard background image. For loading into a TilingCanvas only. -->
   <mx:Image id="standard"
     visible="false"
-    source="@Embed(source='assets/levels/background1.jpg')" />
+    source="@Embed(source='assets/levels/background_1.jpg')" />
   
   <!--
   /////////////////////////////////////////////////////////

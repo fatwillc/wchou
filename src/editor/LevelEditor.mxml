@@ -170,29 +170,15 @@ The level editor.
           var xml:XML;
           
           if (img is EndArea) {
-            xml = 
-              <EndArea>
-                <x>{img.x}</x>
-                <y>{img.y}</y>
-              </EndArea>;
+            xml = <EndArea x={img.x} y={img.y} />;
           } else if (img is RBC) {
             var rbc:RBC = img as RBC;
             
-            xml = 
-              <RBC>
-                <x>{img.x}</x>
-                <y>{img.y}</y>
-                <color>{Color.toString(rbc.color)}</color>
-                <dna>{Color.toString(rbc.dna)}</dna>
-              </RBC>;
+            xml = <RBC x={img.x} y={img.y} color={Color.toString(rbc.color)} dna={Color.toString(rbc.dna)} />;
           } else if (img is WBC) {
-            xml = 
-              <WBC>
-                <x>{img.x}</x>
-                <y>{img.y}</y>
-              </WBC>;
+            xml = <WBC x={img.x} y={img.y} />;
           } else {
-            throw new Error("Unrecognized Object on level canvas.");
+            throw new Error("Unrecognized object on level canvas.");
           }
           
           output.appendChild(xml);

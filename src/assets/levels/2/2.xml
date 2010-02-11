@@ -1,0 +1,12 @@
+<Symptom length="1698">
+  <RBC x="528.9" y="177.9" color="Red" dna="Yellow"/>
+  <WBC x="250.85" y="176.05"/>
+  <WBC x="686.85" y="222.05"/>
+  <WBC x="686.85" y="122.05"/>
+  <RBC x="856.9" y="173.9" color="Yellow" dna="Green"/>
+  <RBC x="1121.9" y="174.9" color="Green" dna="Red"/>
+  <WBC x="1118.85" y="119.05"/>
+  <WBC x="1121.85" y="230.05"/>
+  <WBC x="1424.85" y="173.05"/>
+  <EndArea x="1599.7" y="174.7"/>
+</Symptom>

@@ -6,10 +6,10 @@ package units {
   public class WBC extends Body implements IBoundingSphere  {
     
     /** Maximum attainable speed of a WBC. */
-    public static var MAX_SPEED:Number = 40.0;
+    public static var MAX_SPEED:Number = 600.0;
     
     /** Magnitude of virus-hunting force. */
-    public static var ATTRACTION_FORCE:Number = 1.0;
+    public static var ATTRACTION_FORCE:Number = 3.5;
 
     /** Maximum Euclidean distance at which hunting begins. */
     protected var range:Number = 200.0; // Default range.
@@ -28,13 +28,13 @@ package units {
       
       this.source = _source;
       
-      width = 56.3;
-      height = 53.9;
+      width = 54.0;
+      height = 51.8;
       
       halfWidth = width / 2;
       halfHeight = height / 2;
       
-      _radius = width / 2;
+      _radius = Math.min(width, height) / 2;
       
       cacheAsBitmap = true;
     }
