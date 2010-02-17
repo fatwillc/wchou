@@ -5,6 +5,8 @@ The level editor.
 <mx:TitleWindow 
   xmlns:mx="http://www.adobe.com/2006/mxml" 
   xmlns:units="units.*"
+  xmlns:core="core.*"
+  xmlns:wbc="units.wbc.*"
   width="670"
   height="350" 
   title="Level Editor" 
@@ -22,6 +24,7 @@ The level editor.
     <mx:Script>
     <![CDATA[
       import units.*;
+      import units.wbc.*;
       import utils.Vector2;
       import utils.Geometry;
       import utils.LinkedList.*;
@@ -54,16 +57,11 @@ The level editor.
       
       /** Creates a new unit under the user's cursor for placement on the level. */
       protected function select(c:Class):void {
+        selection = new c();
+        
         switch (c) {
-          case EndArea: 
-            selection = new EndArea(); 
-            break;
           case RBC:
-            selection = new RBC();
             (selection as RBC).setColors(sampleRBC.color, sampleRBC.dna);
-            break;
-          case WBC:
-            selection = new WBC();
             break;
         }
         
@@ -175,8 +173,10 @@ The level editor.
             var rbc:RBC = img as RBC;
             
             xml = <RBC x={img.x} y={img.y} color={Color.toString(rbc.color)} dna={Color.toString(rbc.dna)} />;
-          } else if (img is WBC) {
-            xml = <WBC x={img.x} y={img.y} />;
+          } else if (img is Guard) {
+            xml = <Guard x={img.x} y={img.y} />;
+          } else if (img is Hunter) {
+            xml = <Hunter x={img.x} y={img.y} />;
           } else {
             throw new Error("Unrecognized object on level canvas.");
           }
@@ -256,7 +256,7 @@ The level editor.
     borderThickness="1">
     
     <mx:Label text="End area" />
-    <units:EndArea id="endArea"
+    <core:EndArea id="endArea"
       useHandCursor="true" mouseChildren="true" buttonMode="true"
       mouseDown="select(EndArea);" />
     
@@ -294,9 +294,13 @@ The level editor.
     
     <mx:HRule width="100%" height="15" />
     
-    <units:WBC id="sampleWBC" 
+    <wbc:Guard id="sampleGuard"
       useHandCursor="true" buttonMode="true" mouseChildren="true" 
-      mouseDown="select(WBC);" />
+      mouseDown="select(Guard);" />
+    
+    <wbc:Hunter id="sampleHunter" 
+      useHandCursor="true" buttonMode="true" mouseChildren="true" 
+      mouseDown="select(Hunter);" />
     
     <mx:HRule width="100%" height="15" />
     

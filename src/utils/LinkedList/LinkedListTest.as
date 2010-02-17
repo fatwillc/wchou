@@ -5,6 +5,9 @@ package utils.LinkedList
   {
 
     public static function test():void {
+      // Tests basic operations of a linked list implementation.
+      // Not the most robust or comprehensive test due to laziness...
+      
       trace("Testing LinkedList & LinkedListIterator...");
 
       var start:int = 0;

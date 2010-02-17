@@ -3,10 +3,10 @@ package units {
   /** An enumeration (AS3 does not have built-in enum) of possible DNA colors of cells and the virus. */
   public final class Color  {
     
-    public static const RED:int     = 0;
-    public static const BLUE:int     = 1;
-    public static const GREEN:int   = 2; 
-    public static const YELLOW:int   = 3;
+    public static const RED:int    = 0;
+    public static const BLUE:int   = 1;
+    public static const GREEN:int  = 2; 
+    public static const YELLOW:int = 3;
     
     public static function toString(code:int):String {
       var name:String;

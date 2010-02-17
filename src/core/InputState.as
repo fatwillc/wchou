@@ -11,7 +11,6 @@ package core
    */
   public class InputState
   {
-    
     public function get isMouseDown():Boolean {
       return _isMouseDown;
     }
@@ -27,7 +26,7 @@ package core
     
     /** 
      * Updates input state "last frame" values. 
-     * Must be called at the end of the game loop. 
+     * Must be called during update cycle in game loop.
      */
     public function update():void {
       wasMouseDown = _isMouseDown;

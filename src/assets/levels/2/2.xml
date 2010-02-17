@@ -1,12 +1,23 @@
-<Symptom length="1698">
-  <RBC x="528.9" y="177.9" color="Red" dna="Yellow"/>
-  <WBC x="250.85" y="176.05"/>
-  <WBC x="686.85" y="222.05"/>
-  <WBC x="686.85" y="122.05"/>
-  <RBC x="856.9" y="173.9" color="Yellow" dna="Green"/>
-  <RBC x="1121.9" y="174.9" color="Green" dna="Red"/>
-  <WBC x="1118.85" y="119.05"/>
-  <WBC x="1121.85" y="230.05"/>
-  <WBC x="1424.85" y="173.05"/>
-  <EndArea x="1599.7" y="174.7"/>
+<Symptom length="1754" nextLevel="3">
+  <Image source="travelers-beware.png" x="120" y="50"/>
+  <Guard x="215.5" y="151"/>
+  <Guard x="542.5" y="51"/>
+  <Guard x="664.5" y="208"/>
+  <RBC x="378.9" y="165.9" color="Red" dna="Blue"/>
+  <RBC x="660.9" y="64.9" color="Blue" dna="Red"/>
+  <EndArea x="1665.7" y="164.7"/>
+  <Guard x="749.5" y="132"/>
+  <Guard x="771.5" y="38"/>
+  <RBC x="903.9" y="62.9" color="Red" dna="Blue"/>
+  <RBC x="806.9" y="245.9" color="Blue" dna="Green"/>
+  <Guard x="944.5" y="105"/>
+  <Guard x="1114.5" y="1"/>
+  <RBC x="1279.9" y="249.9" color="Green" dna="Yellow"/>
+  <Guard x="1026.5" y="72"/>
+  <Guard x="831.5" y="316"/>
+  <Guard x="1325.5" y="186"/>
+  <RBC x="1396.9" y="251.9" color="Yellow" dna="Red"/>
+  <Guard x="1230.5" y="126"/>
+  <RBC x="1238.9" y="4.85" color="Green" dna="Red"/>
+  <Guard x="1395.5" y="133"/>
 </Symptom>

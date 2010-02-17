@@ -1,5 +1,6 @@
 package utils.LinkedList {
   
+  /** A doubly-linked list node. */
   public class Node {
     
     public var data:Object;

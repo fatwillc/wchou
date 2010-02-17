@@ -16,7 +16,6 @@ package utils {
     
     /** 
      * Creates a new FPS counter.
-     * 
      * @param label The label which will display the framerate. 
      */
     public function FPS(label:Label)  {    

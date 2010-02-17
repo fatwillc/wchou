@@ -1,10 +1,12 @@
-package units {
-  
+package units.wbc
+{
   import utils.Vector2;
 
-  /** A white blood cell. */
-  public class WBC extends Body implements IBoundingSphere  {
-    
+  /** 
+   * A Hunter is a kind of WBC that actively moves and pursues the virus.
+   */ 
+  public class Hunter extends WBC
+  {
     /** Maximum attainable speed of a WBC. */
     public static var MAX_SPEED:Number = 600.0;
     
@@ -20,10 +22,10 @@ package units {
     private var halfWidth:Number;
     private var halfHeight:Number;
     
-    [Embed(source='assets/units/wbc/wbc.swf')]
+    [Embed(source='assets/units/wbc/hunter.swf')]
     private var _source:Class;
     
-    public function WBC()  {
+    public function Hunter() {
       super();
       
       this.source = _source;
@@ -34,32 +36,31 @@ package units {
       halfWidth = width / 2;
       halfHeight = height / 2;
       
-      _radius = Math.min(width, height) / 2;
+      _radius = (width + height) / 4; // Half of the average side length.
       
       cacheAsBitmap = true;
     }
     
-    /** Checks whether virus is within range of this WBC and "hunts" it if so. */
-    public function hunt(virusCenter:Vector2):void {
+    override public function hunt(virusCenter:Vector2):void {
       var center:Vector2 = this.center;
       var v:Vector2 = virusCenter.subtract(center);
       var lengthV:Number = v.length();
       
       if (lengthV < range) {
         v.normalize();
-        F.acc(v, WBC.ATTRACTION_FORCE);
+        F.acc(v, ATTRACTION_FORCE);
       }
       
-      if (v.length() > WBC.MAX_SPEED) {
-        v.normalize(WBC.MAX_SPEED);
+      if (v.length() > MAX_SPEED) {
+        v.normalize(MAX_SPEED);
       }
     }
     
-    public function get center():Vector2 {
-      return new Vector2(x + width/2, y + height/2);
+    override public function get center():Vector2 {
+      return new Vector2(x + halfWidth, y + halfHeight);
     }
     
-    public function get radius():Number {
+    override public function get radius():Number {
       return _radius;
     }
     

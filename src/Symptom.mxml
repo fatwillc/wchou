@@ -65,6 +65,7 @@ either expressed or implied, of William Chou.
       import mx.events.EffectEvent;
       import core.*;
       import units.*;
+      import units.wbc.*;
       import ui.*;
       import editor.LevelEditor;
       import utils.*;
@@ -113,7 +114,7 @@ either expressed or implied, of William Chou.
       /** Coefficient of friction. */
       public static const F_DRAG:Number = 0.01;
       /** Coefficient of restitution (amount of bounce after a collision). */
-      public static const RESTITUTION:Number = 0.3;
+      public static const RESTITUTION:Number = 0.5;
       
       /** The maximum distance from virus to center of end area that will trigger player victory. */
       public static const VICTORY_DISTANCE:Number = 20.0;
@@ -212,6 +213,7 @@ either expressed or implied, of William Chou.
         // If a custom level is provided, load it. Otherwise, load level 0.    
         currentLevel = (level != null) ? level : Level.getLevel(0);
         
+        // Reset foreground/background.
         foreground.removeAllChildren();
         foreground.alpha = 0.0;
         foreground.width = currentLevel.length;
@@ -220,6 +222,7 @@ either expressed or implied, of William Chou.
         background.width = foreground.width / BACKGROUND_SCALE_FACTOR;
         background.x = background.y = 0;
         
+        // Load level style.
         switch (currentLevel.style) {
           case Level.TITLE:
             background.setTileImage(skin);
@@ -516,16 +519,13 @@ either expressed or implied, of William Chou.
             b.v.x *= -RESTITUTION;
           }
           
-          if (center.y < radius) {
+          if (center.y - radius < 0) {
             b.y += radius - center.y;
             b.v.y *= -RESTITUTION;
           } 
           
-          // Make sure virus does not go off bottom of viewable screen,
-          // for other bodies just confine to level bounds.
-          var maxHeight:Number = (b == virus) ? height - foreground.y : foreground.height;
-          if (center.y > maxHeight - radius) {
-            b.y -= center.y - (maxHeight - radius);
+          if (center.y + radius > foreground.height) {
+            b.y -= center.y + radius - foreground.height;
             b.v.y *= -RESTITUTION;
           }
         }

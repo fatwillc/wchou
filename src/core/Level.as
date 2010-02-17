@@ -3,11 +3,11 @@ package core
   import __AS3__.vec.Vector;
   
   import mx.controls.Image;
+  import core.EndArea;
   
   import units.Color;
-  import units.EndArea;
   import units.RBC;
-  import units.WBC;
+  import units.wbc.*;
   
   import utils.LinkedList.LinkedList;
   import utils.Vector2;
@@ -18,7 +18,7 @@ package core
    * Contains level data as embedded XML assets. This is the only way I've 
    * found to load external XML files without baking them into code or storing
    * them remotely (due to Flash's sandbox security properties). As a result, 
-   * there is a bit of resulting boilerplate code for loading the level data.
+   * there is a bit of boilerplate code for loading the level data.
    */
   public class Level
   {
@@ -47,11 +47,11 @@ package core
     /** End areas in the map. */
     public var endAreas:Vector.<EndArea> = new Vector.<EndArea>();
     
-    /** Width of the map. */
-    public var length:Number;
-    
     /** Foreground images in the map. */
     public var images:Vector.<Image> = new Vector.<Image>();
+    
+    /** Length of the map. */
+    public var length:Number;
     
     /** Visual style of the map. */
     public var style:int = STANDARD;
@@ -116,13 +116,21 @@ package core
         bodies.addLast(rbc);
       }
       
-      for each (xml in level.WBC) {
-        var wbc:WBC = new WBC();
-        wbc.x = xml.@x;
-        wbc.y = xml.@y;
+      for each (xml in level.Hunter) {
+        var hunter:Hunter = new Hunter();
+        hunter.x = xml.@x;
+        hunter.y = xml.@y;
         
-        bodies.addLast(wbc);
+        bodies.addLast(hunter);
       }
+      
+      for each (xml in level.Guard) {
+        var guard:Guard = new Guard();
+        guard.x = xml.@x;
+        guard.y = xml.@y;
+        
+        bodies.addLast(guard);
+      }      
       
       for each (xml in level.Image) {
         var img:Image = new Image();
@@ -146,6 +154,9 @@ package core
     
     [Embed(source="assets/levels/2/2.xml", mimeType="application/octet-stream")] 
     private static const level2:Class;
+    
+    [Embed(source="assets/levels/3/3.xml", mimeType="application/octet-stream")] 
+    private static const level3:Class;
 
     /**
      * Gets the level data of a level number.
@@ -160,6 +171,8 @@ package core
           return new Level(XML(new level1()), levelNumber);
         case 2: 
           return new Level(XML(new level2()), levelNumber);
+        case 3: 
+          return new Level(XML(new level3()), levelNumber);
         default:
           return null;
       }

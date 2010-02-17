@@ -1,6 +1,6 @@
 package utils {
 
-  /** A 2-dimensional vector representation, because Point sucks. */
+  /** A 2-dimensional vector representation, because AS3 Point sucks. */
   public class Vector2 {
     
     public var x:Number;

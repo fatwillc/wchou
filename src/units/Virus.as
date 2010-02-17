@@ -65,10 +65,10 @@ package units {
       
       this.symptom = symptom;
       
-      mass = 0.5;
-      
       width = 43.3;
       height = 49.4;
+      
+      mass = 0.5;
       
       rotation = 90;
       
@@ -117,6 +117,7 @@ package units {
       }
     }
     
+    /** Toggles the visual state of the virus between normal and infecting. */
     public function toggleInfect(isInfect:Boolean):void {
       if (isInfect) {
         source = null;

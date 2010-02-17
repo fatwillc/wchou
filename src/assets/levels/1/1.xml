@@ -1,12 +1,8 @@
 <Symptom length="1800" nextLevel="2">
-
   <RBC x="232.9" y="175" color="Red" dna="Blue"/>
   <RBC x="614.9" y="175" color="Blue" dna="Yellow"/>
   <RBC x="1009.9" y="175" color="Yellow" dna="Green"/>
   <RBC x="1411.9" y="175" color="Green" dna="Red"/>
-  
-  <Image source="look,color.png" x="376" y="184" />
-  
+  <Image source="how-to-eat-a-fruit.png" x="376" y="204" />
   <EndArea x="1657.7" y="175"/>
-  
 </Symptom>

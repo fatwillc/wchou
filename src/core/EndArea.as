@@ -1,4 +1,4 @@
-package units {
+package core {
   
   import mx.controls.Image;
 
