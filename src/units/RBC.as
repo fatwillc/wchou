@@ -1,10 +1,12 @@
 package units {
   
-  import utils.Geometry;
-  import utils.Vector2;
+  import core.GameObject;
+  import core.Color;
+  
+  import mx.controls.Image;
 
   /** A red blood cell. */
-  public class RBC extends Body implements IBoundingSphere {
+  public class RBC extends GameObject {
 
     ///////////////////////////////////////////////////////////////////////////
     // VARIABLES
@@ -14,8 +16,6 @@ package units {
     private var _dna:int;
     /** The cell color. */      
     private var _color:int;
-    
-    private var _radius:Number;
     
     ///////////////////////////////////////////////////////////////////////////
     // EMBEDDED ASSETS
@@ -60,15 +60,13 @@ package units {
     public function RBC()  {
       super();
       
-      width = height = 52.2;
-      
-      _radius = width / 2;
+      _graphics = new Image();
+      graphics.width = graphics.height = 52.2;
+      graphics.cacheAsBitmap = true;
       
       setColors(Color.RED, Color.RED);
       
       mass = 5;
-      
-      cacheAsBitmap = true;
     }
     
     /** Set cell and DNA color. */
@@ -76,43 +74,47 @@ package units {
       this._color = color;
       this._dna = dna;
       
-      switch (_color) {
+      (graphics as Image).source = getSource(_color, _dna);
+    }
+    
+    private function getSource(color:int, dna:int):Class {
+      switch (color) {
         case Color.RED: 
-          switch (_dna) {
-            case Color.RED:    source = RR; break;
-            case Color.BLUE:   source = RB; break;
-            case Color.GREEN:  source = RG; break;
-            case Color.YELLOW: source = RY; break;
+          switch (dna) {
+            case Color.RED:    return RR;
+            case Color.BLUE:   return RB; break;
+            case Color.GREEN:  return RG; break;
+            case Color.YELLOW: return RY; break;
             default: throw new Error("Unrecognized 'dna' parameter.");
           }
           break;
           
         case Color.BLUE: 
-          switch (_dna) {
-            case Color.RED:    source = BR; break;
-            case Color.BLUE:   source = BB; break;
-            case Color.GREEN:  source = BG; break;
-            case Color.YELLOW: source = BY; break;
+          switch (dna) {
+            case Color.RED:    return BR; break;
+            case Color.BLUE:   return BB; break;
+            case Color.GREEN:  return BG; break;
+            case Color.YELLOW: return BY; break;
             default: throw new Error("Unrecognized 'dna' parameter.");
           }
           break;
           
         case Color.GREEN: 
-          switch (_dna) {
-            case Color.RED:    source = GR; break;
-            case Color.BLUE:   source = GB; break;
-            case Color.GREEN:  source = GG; break;
-            case Color.YELLOW: source = GY; break;
+          switch (dna) {
+            case Color.RED:    return GR; break;
+            case Color.BLUE:   return GB; break;
+            case Color.GREEN:  return GG; break;
+            case Color.YELLOW: return GY; break;
             default: throw new Error("Unrecognized 'dna' parameter.");
           }
           break;
           
         case Color.YELLOW: 
-          switch (_dna) {
-            case Color.RED:    source = YR; break;
-            case Color.BLUE:   source = YB; break;
-            case Color.GREEN:  source = YG; break;
-            case Color.YELLOW: source = YY; break;
+          switch (dna) {
+            case Color.RED:    return YR; break;
+            case Color.BLUE:   return YB; break;
+            case Color.GREEN:  return YG; break;
+            case Color.YELLOW: return YY; break;
             default: throw new Error("Unrecognized 'dna' parameter.");
           }
           break;
@@ -130,26 +132,6 @@ package units {
     /** The cell color. */
     public function get color():int {
       return _color;
-    }
-    
-    public function get center():Vector2 {
-      var c:Vector2 = new Vector2(x, y);
-      
-      var currentRotation:Number = rotation * Geometry.DEGREES_TO_RADIANS;
-      
-      var direction:Vector2 = new Vector2();
-      direction.x = Math.sin(currentRotation);
-      direction.y = -Math.cos(currentRotation);
-      direction.normalize(1.0);
-      
-      c.x -= (direction.x + direction.y) * _radius;
-      c.y -= (direction.y - direction.x) * _radius;
-      
-      return c;
-    }
-    
-    public function get radius():Number {
-      return _radius;
     }
   }
 }

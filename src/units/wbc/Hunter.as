@@ -1,5 +1,7 @@
 package units.wbc
 {
+  import mx.controls.Image;
+  
   import utils.Vector2;
 
   /** 
@@ -16,29 +18,16 @@ package units.wbc
     /** Maximum Euclidean distance at which hunting begins. */
     protected var range:Number = 200.0; // Default range.
     
-    private var _radius:Number;
-    
-    // Avoids redundant computation.
-    private var halfWidth:Number;
-    private var halfHeight:Number;
-    
     [Embed(source='assets/units/wbc/hunter.swf')]
     private var _source:Class;
     
     public function Hunter() {
       super();
       
-      this.source = _source;
-      
-      width = 54.0;
-      height = 51.8;
-      
-      halfWidth = width / 2;
-      halfHeight = height / 2;
-      
-      _radius = (width + height) / 4; // Half of the average side length.
-      
-      cacheAsBitmap = true;
+      (graphics as Image).source = _source;
+      graphics.width = 54.0;
+      graphics.height = 51.8;
+      graphics.cacheAsBitmap = true;
     }
     
     override public function hunt(virusCenter:Vector2):void {
@@ -55,14 +44,5 @@ package units.wbc
         v.normalize(MAX_SPEED);
       }
     }
-    
-    override public function get center():Vector2 {
-      return new Vector2(x + halfWidth, y + halfHeight);
-    }
-    
-    override public function get radius():Number {
-      return _radius;
-    }
-    
   }
 }

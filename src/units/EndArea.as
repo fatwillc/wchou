@@ -1,4 +1,4 @@
-package core {
+package units {
   
   import mx.controls.Image;
 
@@ -10,7 +10,7 @@ package core {
       
       width = height = 50.6;
       
-      source = "assets/endArea.swf";
+      source = "assets/units/endArea.swf";
       
       cacheAsBitmap = true;
     }

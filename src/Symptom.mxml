@@ -54,7 +54,6 @@ either expressed or implied, of William Chou.
   backgroundColor="0x333333"
   backgroundGradientAlphas="{[0.0, 0.0]}"
   horizontalScrollPolicy="off"  verticalScrollPolicy="off"
-  frameRate="30"
   applicationComplete="init();" 
   viewSourceURL="srcview/index.html">
 
@@ -86,6 +85,8 @@ either expressed or implied, of William Chou.
       import mx.effects.Fade;
       import mx.effects.easing.Cubic;
       
+      public static var DEBUG:Boolean = false;
+      
       /////////////////////////////////////////////////////////////////////////
       // CONSTANTS
       /////////////////////////////////////////////////////////////////////////
@@ -106,15 +107,7 @@ either expressed or implied, of William Chou.
        * The ratio of background movement to foreground movement, 
        * i.e. for every 1 pixel of foreground movement, the amount of background movement. 
        */
-      public static const BACKGROUND_SCALE_FACTOR:Number = 0.85;
-      
-      /** Window of time immediately following cell infection for launching. */
-      public static const LAUNCH_TIME_MS:Number = 2000.0;
-      
-      /** Coefficient of friction. */
-      public static const F_DRAG:Number = 0.01;
-      /** Coefficient of restitution (amount of bounce after a collision). */
-      public static const RESTITUTION:Number = 0.5;
+      public static const BACKGROUND_PAN_FACTOR:Number = 0.85;
       
       /** The maximum distance from virus to center of end area that will trigger player victory. */
       public static const VICTORY_DISTANCE:Number = 20.0;
@@ -124,43 +117,29 @@ either expressed or implied, of William Chou.
       /////////////////////////////////////////////////////////////////////////
 
       /** For uploading files. */
-      protected var file:FileReference;
-      
-      /** The level editor. */
-      protected var levelEditor:LevelEditor;
-      
-      /** Plays sound effects and music. */
-      [Bindable]
-      protected var soundManager:SoundManager;
+      private var fileReference:FileReference;
       
       /** Timer for the game loop. */
-      protected var loopTimer:Timer;
-      
-      /** Timer for virus launch. */
-      protected var launchTimer:Timer;
+      private var loopTimer:Timer;
       
       /** The current level being played. */
-      protected var currentLevel:Level;
+      private var currentLevel:Level;
       
       /** The player-controlled virus. */
-      protected var virus:Virus;
+      private var virus:Virus;
 
-      /** The current player input state. */
-      protected var input:InputState;
-
-      protected function init():void {
-        new FPS(fps); // DEBUG
+      private function init():void {
+        if (DEBUG)
+          new FPS(fps);
                 
-        input = new InputState(this);
+        InputState.initialize(this);
         
-        soundManager = new SoundManager();
-        
-        levelEditor = new LevelEditor();
+        SoundManager.initialize();
         
         // Set up level loading mechanism.
-        file = new FileReference();
-        file.addEventListener(Event.SELECT, function():void { file.load(); });
-        file.addEventListener(Event.COMPLETE, _loadLevelFile, false, 0, true);
+        fileReference = new FileReference();
+        fileReference.addEventListener(Event.SELECT, function():void { fileReference.load(); });
+        fileReference.addEventListener(Event.COMPLETE, _loadLevelFile, false, 0, true);
         
         addEventListener(StateChangeEvent.CURRENT_STATE_CHANGE, stateChanged);
         
@@ -170,21 +149,17 @@ either expressed or implied, of William Chou.
         /////////////////////////////////////////
         // Initialize game variables.
         /////////////////////////////////////////
-        virus = new Virus(this);
+        virus = new Virus();
 
         loopTimer = new Timer(1000 / TICKS_PER_SECOND);
-        loopTimer.addEventListener(TimerEvent.TIMER, theLoop);
-
-        var launchDelay:Number = 20;
-        launchTimer = new Timer(launchDelay, LAUNCH_TIME_MS / launchDelay);
-        launchTimer.addEventListener(TimerEvent.TIMER, expireLaunch);
+        loopTimer.addEventListener(TimerEvent.TIMER, update);
         
         play();
         
-        soundManager.playGameMusic();
+        SoundManager.playGameMusic();
       }
       
-      protected function keyListener(e:KeyboardEvent):void {
+      private function keyListener(e:KeyboardEvent):void {
         // This is handled here as opposed to being passed through InputState 
         // because we want pause/unpause functionality to work regardless
         // of whether the main game loop is running or not.
@@ -195,23 +170,18 @@ either expressed or implied, of William Chou.
       }
       
       /** Handles state changes. */
-      protected function stateChanged(e:StateChangeEvent = null):void {
+      private function stateChanged(e:StateChangeEvent = null):void {
         if (currentState != "") {
-          launchTimer.stop();
           loopTimer.stop();
-          
-          virus.pause();
         } else {
           loopTimer.start();
-          
-          virus.resume();
         }
       }
       
       /** Starts a new game to play. */
-      protected function play(level:Level = null):void {      
+      private function play(level:Level = null):void {      
         // If a custom level is provided, load it. Otherwise, load level 0.    
-        currentLevel = (level != null) ? level : Level.getLevel(0);
+        currentLevel = (level != null) ? level : Level.getLevel(1); // TODO 0);
         
         // Reset foreground/background.
         foreground.removeAllChildren();
@@ -219,7 +189,7 @@ either expressed or implied, of William Chou.
         foreground.width = currentLevel.length;
         foreground.x = foreground.y = 0;
         
-        background.width = foreground.width / BACKGROUND_SCALE_FACTOR;
+        background.width = foreground.width / BACKGROUND_PAN_FACTOR;
         background.x = background.y = 0;
         
         // Load level style.
@@ -235,10 +205,9 @@ either expressed or implied, of William Chou.
             break;
         }
         
-        // Virus needs to be first in list for proper collision handling.
-        // This is because of how the pair-wise collisions are processed 
-        // (a dubious constraint for coding convenience).
-        currentLevel.bodies.addFirst(virus);
+        // Having the virus as the first element makes collision detection a bit simpler.
+        currentLevel.objects.push(virus);
+        currentLevel.objects.reverse();
         
         /////////////////////////////////////////
         // Load level data.
@@ -252,15 +221,14 @@ either expressed or implied, of William Chou.
           foreground.addChild(ea);
         }
         
-        for (var I:LinkedListIterator = new LinkedListIterator(currentLevel.bodies); I.hasNext();) {
-          foreground.addChild(I.next().data as Body);
+        for each (var body:GameObject in currentLevel.objects) {
+          foreground.addChild(body.graphics);
         }
         
         virus.reset();
-        virus.x = 100;
-        virus.y = height/2 - virus.height/2;
-        foreground.addChild(virus);
-        virus.resume();
+        virus.graphics.x = 100;
+        virus.graphics.y = height/2 - virus.graphics.height/2;
+        foreground.addChild(virus.graphics);
         
         /////////////////////////////////////////
         // Start game.
@@ -272,10 +240,8 @@ either expressed or implied, of William Chou.
       }
       
       /** Ends the game. */
-      protected function endGame(isWin:Boolean):void {
-        launchTimer.stop();      
+      private function endGame(isWin:Boolean):void {
         loopTimer.stop();
-        virus.pause();
         
         // If player won and next level exists, advance to it.
         // Otherwise, reload first level.
@@ -294,62 +260,36 @@ either expressed or implied, of William Chou.
         levelTransition.addEventListener(EffectEvent.EFFECT_END, f);
         levelTransition.play([foreground, background]);
       }
-
-      /** Checks launch timer expiration and handles launching. */
-      protected function expireLaunch(e:TimerEvent = null):void {
-        if (e != null) {
-          // A non-null argument means that this function was called
-          // automatically by a timer. In that case, only expire the launch
-          // when the timer expires.
-          
-          // Draw direction indicator.
-          virus.graphics.clear();
-          virus.graphics.beginFill(0xffffff, 0.75);
-          virus.graphics.drawCircle(virus.width/2, -5, 3);
-          
-          if (launchTimer.currentCount < launchTimer.repeatCount) {
-            return;
-          }
-        }
-        
-        soundManager.playRandomLaunch();
-        
-        virus.graphics.clear();
-        virus.toggleInfect(false);
-        
-        launchTimer.reset();
-        
-        // Remove infected body from game.
-        var i:Body = virus.infected.data as Body;
-        currentLevel.bodies.remove(virus.infected);
-        i.setStyle("removedEffect", fade);
-        foreground.removeChild(i);
-        
-        virus.infected = null;
-      }
       
       /** The main game loop. */
-      protected function theLoop(e:TimerEvent):void {
-        // Some variables for reuse.
-        var i:int, j:int;
-        var b:Body, bi:Body, bj:Body;
-        var img:Image;
-        var I:LinkedListIterator, J:LinkedListIterator;
-        var ni:Node, nj:Node;
-        var ea:EndArea;
+      private function update(e:TimerEvent):void {
+        if (DEBUG)
+          foreground.graphics.clear();
         
         var virusCenter:Vector2    = virus.center;
         var virusDirection:Vector2 = virus.direction;
         var virusSpeed:Number      = virus.v.length();
         
         /////////////////////////////////////////
+        // REMOVE DESTROYED GAME OBJECTS
+        /////////////////////////////////////////
+        
+        var filterDestroy:Function = function(object:GameObject, i:int, v:Vector.<GameObject>):Boolean {
+          if (object.state == ObjectState.DESTROY)
+            foreground.removeChild(object.graphics);
+          
+          return object.state == ObjectState.ACTIVE;
+        }
+        currentLevel.objects = currentLevel.objects.filter(filterDestroy);
+        
+        /////////////////////////////////////////
         // CHECK FOR VICTORY CONDITION
         /////////////////////////////////////////
         
-        for each (ea in currentLevel.endAreas) {            
-          var eac:Vector2 = new Vector2(ea.x + ea.width/2, ea.y + ea.height/2);
+        for each (var end:EndArea in currentLevel.endAreas) {            
+          var center:Vector2 = new Vector2(end.x + end.width/2, end.y + end.height/2);
           
-          if (virusCenter.subtract(eac).length() < VICTORY_DISTANCE) {
+          if (virusCenter.subtract(center).length() < VICTORY_DISTANCE) {
             endGame(true);
           }
         }
@@ -357,205 +297,112 @@ either expressed or implied, of William Chou.
         /////////////////////////////////////////
         // CLEAR FORCES
         /////////////////////////////////////////
+        
+        for each (var object:GameObject in currentLevel.objects)
+          object.F.zero();
 
-        for (I = new LinkedListIterator(currentLevel.bodies); I.hasNext();) {
-          b = I.next().data as Body;
-          
-          b.F.zero();
-        }
-        
         /////////////////////////////////////////
-        // ADD FORCES
+        // CROSS-OBJECT ACTIONS
         /////////////////////////////////////////
-        
-        // VIRUS MOVEMENT.
-        if (virus.infected == null) {
-          var move:Vector2 = new Vector2(virusDirection.x * Virus.F_MOVE, virusDirection.y * Virus.F_MOVE);
-          // Taper acceleration as virus approaches max speed.
-          if (virusDirection.dot(virus.v) > 0) {
-            move.scale((Virus.MAX_SPEED - virusSpeed)/Virus.MAX_SPEED);
-          }
-          
-          if (input.isMouseDown) {
-            virus.F.x += move.x;
-            virus.F.y += move.y;
-          }
-        } else {
-          // Launch by applying an impulse.
-          if (input.isMouseDown && !input.wasMouseDown) {
-            expireLaunch();
-            
-            virus.v.acc(virusDirection, Virus.MAX_SPEED);
-          }
-        }
         
         // WBC ATTRACTION.
-        for (I = new LinkedListIterator(currentLevel.bodies); I.hasNext();) {
-          b = I.next().data as Body;
-          
-          if (b is WBC) {
-            b.graphics.clear();  
-          
-            if (virus.infected == null)
-              (b as WBC).hunt(virusCenter);
+        for each (var object:GameObject in currentLevel.objects) {
+          if (object is WBC) {
+            if (!virus.isInfecting)
+              (object as WBC).hunt(virusCenter);
           }
         }
-        
-        // DRAG.
-        for (I = new LinkedListIterator(currentLevel.bodies); I.hasNext();) {
-          b = I.next().data as Body;
-          
-          b.F.x -= b.v.x * F_DRAG;
-          b.F.y -= b.v.y * F_DRAG;
-        }
-        
+
         // COLLISION PENALTY FORCES.
-        var buffer:Number = 1;
         var k:Number = 10.0;
 
-        i = 0;
-        for (I = new LinkedListIterator(currentLevel.bodies); I.hasNext(); i++) {
-          bi = I.next().data as Body;
+        for (var i:int = 0; i < currentLevel.objects.length; i++) {
+          var oi:GameObject = currentLevel.objects[i];
           
-          for (J = new LinkedListIterator(currentLevel.bodies, i+1); J.hasNext();) {
-            nj = J.next();
-            bj = nj.data as Body;
+          for (var j:int = i+1; j < currentLevel.objects.length; j++) {
+            var oj:GameObject = currentLevel.objects[j];
             
-            var p:Vector2 = (bi as IBoundingSphere).center;
-            var r:Number  = (bi as IBoundingSphere).radius + buffer;
-            var q:Vector2 = (bj as IBoundingSphere).center;
-            var s:Number  = (bj as IBoundingSphere).radius + buffer;
-            
-            var normal:Vector2 = Geometry.intersect(p, r, q, s);
+            var normal:Vector2 = Geometry.intersect(oi.center, oi.radius, oj.center, oj.radius);
             if (normal != null) {
-              if (bi == virus) {
-                if (virus.infected != null) {
+              // Virus-specific collisions.
+              // Note: Assumes that virus is the first element in the list of objects.
+              if (oi == virus) {
+                if (virus.isInfecting) {
                   break;
                 }
                 
-                if (bj is WBC) {
+                if (oj is WBC) {
                   endGame(false);
-                  break;
+                  return;
                 }
                 
-                if (bj is RBC && normal.dot(virusDirection) > Geometry.COS_30 && virus.dna == (bj as RBC).color) {
-                  soundManager.playRandomInfect();
-                  
-                  bj.alpha = 0.5;
-                  
-                  virus.infected = nj;
-                  
-                  virus.F.zero();
-                  virus.v.zero();
-                  virus.changeDNA((bj as RBC).dna);
-                  virus.toggleInfect(true);
-
-                  launchTimer.start();
-                  
+                 if (oj is RBC && normal.dot(virusDirection) > Geometry.COS_30 && virus.dna == (oj as RBC).color) {
+                  virus.infect(oj as RBC);
                   break;
-                }
+                } 
               }
               
               var d:Number = normal.length();
-              
               normal.normalize();
-              var relativeV:Vector2 = bi.v.subtract(bj.v);
               
-              // If collided bodies are already separating, don't apply force.
-              if (relativeV.dot(normal) < 0) {
+              var relativeV:Vector2 = oi.v.subtract(oj.v);
+              if (relativeV.dot(normal) < 0)
                 continue;
-              }
               
-              bi.F.acc(normal, -k * d);
-              bj.F.acc(normal,  k * d);
+              oi.F.acc(normal, -k * d);
+              oj.F.acc(normal,  k * d);
             }
           }
         }
         
         /////////////////////////////////////////
-        // UPDATE
+        // OBJECT UPDATES
         /////////////////////////////////////////
         
-        input.update();
-        
-        for (I = new LinkedListIterator(currentLevel.bodies); I.hasNext();) {
-          b = I.next().data as Body;
-          
-          b.applyF();
-          
-          b.step(DT);
-        }
-        
-        // If infecting, move virus to infected body center.
-        if (virus.infected != null) {
-          var pv:Vector2 = (virus as IBoundingSphere).center;
-          var pi:Vector2 = (virus.infected.data as IBoundingSphere).center;
-          
-          virus.x += pi.x - pv.x;
-          virus.y += pi.y - pv.y;
-        }
-        
-        if (virusSpeed > Virus.MAX_SPEED) {
-          virus.v.normalize(Virus.MAX_SPEED);
-        }
-        
-        /////////////////////////////////////////
-        // CONFINE TO BOUNDS
-        /////////////////////////////////////////
-        
-        for (I = new LinkedListIterator(currentLevel.bodies); I.hasNext();) {
-          b = I.next().data as Body;
-          
-          var center:Vector2 = (b as IBoundingSphere).center;
-          var radius:Number = (b as IBoundingSphere).radius;
-          
-          if (center.x - radius < 0) {
-            b.x += radius - center.x;
-            b.v.x *= -RESTITUTION;
-          }
-          
-          if (center.x + radius > foreground.width) {
-            b.x -= center.x + radius - foreground.width;
-            b.v.x *= -RESTITUTION;
-          }
-          
-          if (center.y - radius < 0) {
-            b.y += radius - center.y;
-            b.v.y *= -RESTITUTION;
-          } 
-          
-          if (center.y + radius > foreground.height) {
-            b.y -= center.y + radius - foreground.height;
-            b.v.y *= -RESTITUTION;
-          }
-        }
+        for each (var object:GameObject in currentLevel.objects)
+          object.update(DT);
         
         /////////////////////////////////////////
         // SCROLL SCREEN
         /////////////////////////////////////////
 
         var epsilon:Number = 10;
+        virusCenter = virus.center;
         
         // Scroll screen according to virus position.
-        virusCenter = virus.center;
         if (virusCenter.x > width/2 && foreground.x > -foreground.width + width + epsilon) {
           var delta:Number = Math.min(0, width/2 - virusCenter.x - foreground.x);
           
           foreground.x += delta;
-          background.x += delta * BACKGROUND_SCALE_FACTOR;
-        }
+          background.x += delta * BACKGROUND_PAN_FACTOR;
+        }        
+        
+        /////////////////////////////////////////
+        // PERFORM TIMESTEP
+        /////////////////////////////////////////
+        
+        for each (var object:GameObject in currentLevel.objects)
+          object.step(DT);
+        
+        /////////////////////////////////////////
+        // OTHER UPDATES
+        /////////////////////////////////////////
+        
+        InputState.update();
       }
       
-      protected function openLevelEditor():void {
+      private function openLevelEditor():void {
         currentState = "pause";
         
-        PopUpManager.addPopUp(levelEditor, this, false);
-        PopUpManager.centerPopUp(levelEditor);
+        var editor:LevelEditor = new LevelEditor();
+        
+        PopUpManager.addPopUp(editor, this, false);
+        PopUpManager.centerPopUp(editor);
       }
       
       // Listener to load level data from a pre-selected file. Should not be called directly.
       private function _loadLevelFile(e:Event):void {
-        var buffer:ByteArray = file.data;
+        var buffer:ByteArray = fileReference.data;
         
         try {
           var level:XML = XML(buffer.readUTFBytes(buffer.bytesAvailable));
@@ -580,7 +427,7 @@ either expressed or implied, of William Chou.
     height="400"
     horizontalScrollPolicy="off" verticalScrollPolicy="off" />
   
-  <!--- Foreground contains virus and interactive bodies. -->
+  <!--- Foreground contains virus and interactive objects. -->
   <mx:Canvas id="foreground"
     height="400"
     horizontalScrollPolicy="off" verticalScrollPolicy="off" />
@@ -588,16 +435,16 @@ either expressed or implied, of William Chou.
   <!--- Opens level editor. -->
   <mx:Image id="hammer"
     x="770" y="5"
-    source="@Embed(source='assets/hammer.swf')" 
+    source="@Embed(source='assets/ui/hammer.swf')" 
     toolTip="Level editor"
     click="openLevelEditor();" />
     
   <!--- Opens dialog for loading a custom level. -->
   <mx:Image id="folder"
     x="772" y="35"
-    source="@Embed(source='assets/folder.swf')"
+    source="@Embed(source='assets/ui/folder.swf')"
     toolTip="Load custom level"
-    click="file.browse([new FileFilter('Symptom Level', '*.xml')]);" />
+    click="fileReference.browse([new FileFilter('Symptom Level', '*.xml')]);" />
   
   <!-- DEBUG -->
   <mx:Label id="fps" color="white" />
@@ -627,7 +474,7 @@ either expressed or implied, of William Chou.
   <!--- Effect for fading out destroyed bodies. -->
   <mx:Fade id="fade" alphaTo="0.0" easingFunction="{Cubic.easeIn}" />
   
-  <!--- Effect for transitioning between levels. -->
+  <!--- Effect for transitioning out of a level. -->
   <mx:Fade id="levelTransition" alphaFrom="1.0" alphaTo="0.0" easingFunction="{Cubic.easeOut}" duration="1000" />
   
   <!--

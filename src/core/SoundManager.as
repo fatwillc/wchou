@@ -1,4 +1,4 @@
-package utils {
+package core {
   
   import __AS3__.vec.Vector;
   
@@ -7,7 +7,10 @@ package utils {
   import mx.core.SoundAsset;
   import mx.effects.SoundEffect;
   
-  /** Plays sounds and handles sound assets. */
+  /** 
+   * Plays sounds and handles sound assets. 
+   * Implemented as a singleton.
+   */
   public class SoundManager {
     
     ///////////////////////////////////////////////////////
@@ -15,36 +18,36 @@ package utils {
     ///////////////////////////////////////////////////////
     
     /** Channel for infect effects. */
-    protected var infectChannel:SoundChannel;
+    private static var infectChannel:SoundChannel;
     /** A vector of all infect sound effects. */
-    protected var infects:Vector.<SoundAsset>;
+    private static var infects:Vector.<SoundAsset>;
     
-    [Bindable] [Embed(source="assets/sound/infect_1.mp3")] private var infect_1:Class;
+    [Bindable] [Embed(source="assets/sound/infect_1.mp3")] private static var infect_1:Class;
     
     /** Channel for launch effects. */
-    protected var launchChannel:SoundChannel;
+    private static var launchChannel:SoundChannel;
     /** A vector of all launch sound effects. */
-    protected var launchs:Vector.<SoundAsset>;
+    private static var launchs:Vector.<SoundAsset>;
     
-    [Bindable] [Embed(source="assets/sound/launch_1.mp3")] private var launch_1:Class;
-    [Bindable] [Embed(source="assets/sound/launch_2.mp3")] private var launch_2:Class;
+    [Bindable] [Embed(source="assets/sound/launch_1.mp3")] private static var launch_1:Class;
+    [Bindable] [Embed(source="assets/sound/launch_2.mp3")] private static var launch_2:Class;
     
     ///////////////////////////////////////////////////////
     // MUSIC
     ///////////////////////////////////////////////////////
     
     /** Channel for music. */
-    protected var musicChannel:SoundChannel;
+    private static var musicChannel:SoundChannel;
     
-    protected var redViolin:SoundAsset;
-    [Bindable] [Embed(source="assets/sound/RedViolin.mp3")] private var red_violin:Class;
+    private static var redViolin:SoundAsset;
+    [Bindable] [Embed(source="assets/sound/RedViolin.mp3")] private static var red_violin:Class;
 
     ///////////////////////////////////////////////////////
     // METHODS
     ///////////////////////////////////////////////////////
     
     /** Create a new sound manager. */
-    public function SoundManager()  {
+    public static function initialize():void  {
       // Music.
       redViolin = SoundAsset(new red_violin());
  
@@ -58,21 +61,21 @@ package utils {
     }
     
     /** Plays game music. */
-    public function playGameMusic():void {
+    public static function playGameMusic():void {
       stopMusic();
       
       musicChannel = redViolin.play();
     }
     
     /** Stops playing of all music. */
-    public function stopMusic():void {
+    public static function stopMusic():void {
       if (musicChannel != null) {
         musicChannel.stop();
       }
     }
     
     /** Plays a random infect sound effect. */
-    public function playRandomInfect():void {
+    public static function playRandomInfect():void {
       if (infectChannel != null) {
         infectChannel.stop();
       }
@@ -81,7 +84,7 @@ package utils {
     }
     
     /** Plays a random launch sound effect. */
-    public function playRandomLaunch():void {
+    public static function playRandomLaunch():void {
       if (launchChannel != null) {
         launchChannel.stop();
       }

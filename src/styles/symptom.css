@@ -13,10 +13,10 @@ Alert, Panel, TitleWindow {
 }
 
 TitleWindow {
- closeButtonUpSkin:       Embed(source="assets/close_up.swf");
- closeButtonDisabledSkin: Embed(source="assets/close_up.swf");
- closeButtonOverSkin:     Embed(source="assets/close_over.swf");
- closeButtonDownSkin:     Embed(source="assets/close_down.swf");
+ closeButtonUpSkin:       Embed(source="assets/ui/close_up.swf");
+ closeButtonDisabledSkin: Embed(source="assets/ui/close_up.swf");
+ closeButtonOverSkin:     Embed(source="assets/ui/close_over.swf");
+ closeButtonDownSkin:     Embed(source="assets/ui/close_down.swf");
 }
 
 Button {

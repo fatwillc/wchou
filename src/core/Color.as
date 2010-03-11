@@ -1,6 +1,6 @@
-package units {
+package core {
   
-  /** An enumeration (AS3 does not have built-in enum) of possible DNA colors of cells and the virus. */
+  /** An enumeration of possible DNA colors of cells and the virus. */
   public final class Color  {
     
     public static const RED:int    = 0;

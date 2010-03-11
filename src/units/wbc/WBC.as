@@ -1,34 +1,21 @@
 package units.wbc {
   
-  import units.Body;
-  import units.IBoundingSphere;
+  import core.GameObject;
+  import core.ObjectState;
+  
+  import mx.effects.Fade;
+  import mx.events.EffectEvent;
   
   import utils.Vector2;
 
   /** 
-   * A white blood cell. 
-   * 
-   * Implemented as an unenforced abstract class. This means that the programmer
-   * must check that subclasses override functions provided in this class. 
-   * It seems possible to "hack" runtime enforcement of subclass -
-   * [http://joshblog.net/2007/08/19/enforcing-abstract-classes-at-runtime-in-actionscript-3/].
-   * For simplicity's sake that method is not applied here.
+   * An abstract white blood cell. 
    */
-  public class WBC extends Body implements IBoundingSphere  {
-    
+  public class WBC extends GameObject  {
+        
     /** Checks whether virus is within range of this WBC and "hunts" it if so. */
     public function hunt(virusCenter:Vector2):void {
       // Must be implemented by subclass.
-    }
-    
-    public function get center():Vector2 {
-      // Must be implemented by subclass.
-      return null;
-    }
-    
-    public function get radius():Number {
-      // Must be implemented by subclass.
-      return 0;
     }
     
   }

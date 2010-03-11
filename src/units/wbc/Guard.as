@@ -1,5 +1,7 @@
 package units.wbc
 {
+  import mx.controls.Image;
+  
   import utils.Vector2;
   
   /**
@@ -11,41 +13,21 @@ package units.wbc
     [Embed(source='assets/units/wbc/guard.png')]
     private var _source:Class;
     
-    private var _radius:Number;
-    
-    // Avoids redundant computation.
-    private var halfWidth:Number;
-    private var halfHeight:Number;
-    
     public function Guard() {
       super();
       
-      this.source = _source;
+      (graphics as Image).source = _source;
       
-      width = 83.0;
-      height = 94.0;
+      graphics.width = 83.0;
+      graphics.height = 94.0;
       
-      halfWidth = width / 2;
-      halfHeight = height / 2; 
+      isPinned = true;
       
-      _radius = Math.min(width, height) / 2;
-      
-      isInteractive = false;
-      
-      cacheAsBitmap = true; 
+      graphics.cacheAsBitmap = true; 
     }
     
     override public function hunt(virusCenter:Vector2):void {
       // A guard is stationary; do nothing.
     }
-    
-    override public function get center():Vector2 {
-      return new Vector2(x + halfWidth, y + halfHeight);
-    }
-    
-    override public function get radius():Number {
-      return _radius;
-    }
-    
   }
 }

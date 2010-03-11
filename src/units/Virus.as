@@ -1,49 +1,53 @@
 package units {
   
-  import flash.events.MouseEvent;
+  import core.GameObject;
+  import core.Color;
+  import core.IBoundingCircle;
+  import core.InputState;
+  import core.ObjectState;
+  import core.SoundManager;
+  
+  import flash.events.TimerEvent;
   import flash.geom.Matrix;
+  import flash.utils.Timer;
+  
+  import mx.controls.Image;
   
   import utils.Geometry;
-  import utils.LinkedList.Node;
   import utils.Vector2;
 
   /** The player-controlled virus. */
-  public class Virus extends Body implements IBoundingSphere {
+  public class Virus extends GameObject {
     
     ///////////////////////////////////////////////////////////////////////////
     // CONSTANTS
     ///////////////////////////////////////////////////////////////////////////
     
     /** Force of virus movement. */
-    public static const F_MOVE:Number = 6.0;
+    private static const F_MOVE:Number = 6.0;
     /** Maximum attainable speed of the virus. */
-    public static const MAX_SPEED:Number = 400.0;
-    
-    /** Offset to center of virus body. */
-    private const centerOffset:Number = 6;
-    /** Radius of virus's bounding sphere. */
-    private const _radius:Number = 14;
-    
+    private static const MAX_SPEED:Number = 400.0;
+    /** Window of time immediately following cell infection for launching. */
+    private static const LAUNCH_TIME_MS:Number = 2000.0;
+
     ///////////////////////////////////////////////////////////////////////////
     // VARIABLES
     ///////////////////////////////////////////////////////////////////////////
     
     /** The virus's current DNA color. */
-    public var dna:int;
+    private var _dna:int;
+    public function get dna():int { return _dna; }
   
-    /** The list node of the virus's currently infected body, if any. */
-    public var infected:Node;
-    
-    /** Pointer to main application. */
-    protected var symptom:Symptom;
+    /** The virus's currently infected body, if any. */
+    private var infected:GameObject;
+    public function get isInfecting():Boolean { return infected != null; }
+  
+    /** Timer for virus launch. */
+    private var launchTimer:Timer;
     
     /** The direction the virus is currently facing. */
     private var _direction:Vector2 = new Vector2();
-    
-    // Avoids redundant computation.
-    private var halfWidth:Number;
-    private var halfHeight:Number;
-    
+
     ///////////////////////////////////////////////////////////////////////////
     // EMBEDDED ASSETS
     ///////////////////////////////////////////////////////////////////////////
@@ -57,37 +61,32 @@ package units {
     [Embed(source='assets/virus/virus_yellow.swf')]
     private var yellow:Class;
     
-    [Embed(source='assets/virus/arrow.swf')]
-    private var arrow:Class;
-    
-    public function Virus(symptom:Symptom)  {
-      super();
-      
-      this.symptom = symptom;
-      
-      width = 43.3;
-      height = 49.4;
-      
-      mass = 0.5;
-      
-      rotation = 90;
-      
-      halfWidth = width / 2;
-      halfHeight = height / 2;
+    public function Virus()  {
+      super(0.5);
+     
+      _graphics = new Image();
+     
+      graphics.width = 43.3;
+      graphics.height = 49.4;      
+      graphics.rotation = 90;
       
       changeDNA(Color.RED);
       
-      resume();
-    }
+      var launchDelay:Number = 100;
+      launchTimer = new Timer(launchDelay, LAUNCH_TIME_MS / launchDelay);
+      launchTimer.addEventListener(TimerEvent.TIMER, launch);
+    } 
     
-    /** Freezes all virus-dependent actions. */
-    public function pause():void {
-      symptom.removeEventListener(MouseEvent.MOUSE_MOVE, rotateToMouse);
-    }
-    
-    /** Unfreezes all virus-dependent actions. */
-    public function resume():void {
-      symptom.addEventListener(MouseEvent.MOUSE_MOVE, rotateToMouse);
+    public function infect(rbc:RBC):void {                  
+      SoundManager.playRandomInfect();
+      
+      infected = rbc;
+      rbc.graphics.alpha = 0.5;
+      
+      changeDNA(rbc.dna);
+      toggleInfect(true);
+
+      launchTimer.start();
     }
     
     /** Resets the state of the virus. */
@@ -96,45 +95,113 @@ package units {
       
       changeDNA(Color.RED);
       
-      rotation = 90;
+      graphics.rotation = 90;
+    }   
+    
+    override public function update(dt:Number):void {
+      if (infected != null) {
+        if (InputState.isMouseDown && !InputState.wasMouseDown) {
+          launch();
+        } else {
+          // If infecting, move virus to infected object center.
+          graphics.x += infected.center.x - center.x;
+          graphics.y += infected.center.y - center.y;
+      
+          F.zero();
+          v.zero();
+        }
+      } else {
+        // Normal movement.
+        if (InputState.isMouseDown) {
+          var move:Vector2 = new Vector2(direction.x * F_MOVE, direction.y * F_MOVE);
+          
+          // Taper acceleration as virus approaches max speed.
+          if (direction.dot(v) > 0) {
+            move.scale((MAX_SPEED - v.length())/Virus.MAX_SPEED);
+          }
+          
+          F.x += move.x;
+          F.y += move.y;
+        }
+      }
+        
+      if (v.length() > Virus.MAX_SPEED) {
+        v.normalize(Virus.MAX_SPEED);
+      }
+      
+      rotateToMouse();
+    } 
+
+    /** Checks launch timer expiration and handles launching. */
+    private function launch(e:TimerEvent = null):void {
+      var img:Image = graphics as Image;
+      
+      if (e != null) {
+        // A non-null argument means that this function was called
+        // automatically by a timer. In that case, only expire the launch
+        // when the timer expires.
+        
+        // Draw direction indicator.
+        img.graphics.clear();
+        img.graphics.beginFill(0xffffff, 0.75);
+        img.graphics.drawCircle(graphics.width / 2, -10, 3);
+        
+        if (launchTimer.currentCount < launchTimer.repeatCount) {
+          return;
+        }
+      }
+      
+      SoundManager.playRandomLaunch();
+      
+      v.acc(direction, MAX_SPEED);
+      img.graphics.clear();
+      toggleInfect(false);
+
+      infected.die();
+      infected = null;
+      
+      launchTimer.reset();
     }
     
     /** Changes the virus's DNA color. */
-    public function changeDNA(dna:int):void {
-      this.dna = dna;
+    private function changeDNA(dna:int):void {
+      this._dna = dna;
       
       switch (dna) {
         case Color.RED: 
-          source = red; break;
+          (graphics as Image).source = red; break;
         case Color.BLUE: 
-          source = blue; break;
+          (graphics as Image).source = blue; break;
         case Color.GREEN: 
-          source = green; break;
+          (graphics as Image).source = green; break;
         case Color.YELLOW: 
-          source = yellow; break;
+          (graphics as Image).source = yellow; break;
         default:
           throw new Error("Unrecognized 'dna' parameter.");
       }
     }
     
     /** Toggles the visual state of the virus between normal and infecting. */
-    public function toggleInfect(isInfect:Boolean):void {
+    private function toggleInfect(isInfect:Boolean):void {
       if (isInfect) {
-        source = null;
+        (graphics as Image).source = null;
       } else {
-        changeDNA(dna);
+        changeDNA(_dna);
       }
     }
     
     /** Rotates virus to face the current mouse position. */
-    protected function rotateToMouse(e:MouseEvent):void {
+    private function rotateToMouse():void {
       var m:Matrix = new Matrix();
       
-      var currentRotation:Number = rotation * Geometry.DEGREES_TO_RADIANS;
+      var currentRotation:Number = graphics.rotation * Geometry.DEGREES_TO_RADIANS;
+ 
+      var halfWidth:Number = graphics.width / 2;
+      var halfHeight:Number = graphics.height / 2;      
       
       // Virus-center-to-mouse vector in virus's local coordinates.
-      var vx:Number = mouseX - halfWidth;
-      var vy:Number = mouseY - halfHeight;
+      var vx:Number = graphics.mouseX - halfWidth;
+      var vy:Number = graphics.mouseY - halfHeight;
       
       // Since Flex takes the top-left corner of the image as the rotation axis by default, 
       // need to translate to set center, and translate back after rotation.
@@ -143,12 +210,12 @@ package units {
       m.translate(halfWidth, halfHeight);
       
       // Concat world transform onto local transform.
-      m.concat(transform.matrix);
+      m.concat(graphics.transform.matrix);
       
-      transform.matrix = m;
+      graphics.transform.matrix = m;
       
       // Set virus direction.
-      currentRotation = rotation * Geometry.DEGREES_TO_RADIANS;
+      currentRotation = graphics.rotation * Geometry.DEGREES_TO_RADIANS;
 
       _direction.x = Math.sin(currentRotation);
       _direction.y = -Math.cos(currentRotation);
@@ -158,22 +225,6 @@ package units {
     /** The direction the virus is currently facing. */
     public function get direction():Vector2 {
       return _direction;
-    }
-    
-    public function get center():Vector2 {
-      var c:Vector2 = new Vector2(x, y);
-      
-      c.x -= _direction.x * halfHeight + _direction.y * halfWidth;
-      c.y -= _direction.y * halfHeight - _direction.x * halfWidth;
-      
-      c.x -= _direction.x * centerOffset;
-      c.y -= _direction.y * centerOffset;
-      
-      return c;
-    }
-    
-    public function get radius():Number {
-      return _radius;
     }
   }
 }

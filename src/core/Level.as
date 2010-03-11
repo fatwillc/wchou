@@ -3,11 +3,12 @@ package core
   import __AS3__.vec.Vector;
   
   import mx.controls.Image;
-  import core.EndArea;
   
-  import units.Color;
+  import units.EndArea;
   import units.RBC;
   import units.wbc.*;
+  import core.GameObject;
+  import core.Color;
   
   import utils.LinkedList.LinkedList;
   import utils.Vector2;
@@ -28,7 +29,7 @@ package core
     // VISUAL STYLES ENUMERATION
     ///////////////////////////////////////////////////////////////////////////
     
-    /** Standard level style (400 width, tiling background). */
+    /** Standard level style. */
     public static const STANDARD:int = 0;
     
     /** Title screen style. */
@@ -38,11 +39,8 @@ package core
     // VARIABLES
     //////////////////////////////////////////////////////////////////////////
     
-    /** 
-     * Interacting bodies in the map. 
-     * The virus must be the first element of this list for proper collision detection.
-     */
-    public var bodies:LinkedList = new LinkedList();
+    /** Interacting objects in the map. */
+    public var objects:Vector.<GameObject> = new Vector.<GameObject>();
     
     /** End areas in the map. */
     public var endAreas:Vector.<EndArea> = new Vector.<EndArea>();
@@ -107,34 +105,34 @@ package core
       for each (xml in level.RBC) {
         var rbc:RBC = new RBC();
         rbc.setColors(Color.fromString(xml.@color), Color.fromString(xml.@dna));
-        rbc.rotation = Math.random() * 360;
+        rbc.graphics.rotation = Math.random() * 360;
         
         var center:Vector2 = rbc.center;
-        rbc.x = xml.@x - center.x + rbc.width/2;
-        rbc.y = xml.@y - center.y + rbc.height/2;
+        rbc.graphics.x = xml.@x - center.x + rbc.graphics.width/2;
+        rbc.graphics.y = xml.@y - center.y + rbc.graphics.height/2;
         
-        bodies.addLast(rbc);
+        objects.push(rbc);
       }
       
       for each (xml in level.Hunter) {
         var hunter:Hunter = new Hunter();
-        hunter.x = xml.@x;
-        hunter.y = xml.@y;
+        hunter.graphics.x = xml.@x;
+        hunter.graphics.y = xml.@y;
         
-        bodies.addLast(hunter);
+        objects.push(hunter);
       }
       
       for each (xml in level.Guard) {
         var guard:Guard = new Guard();
-        guard.x = xml.@x;
-        guard.y = xml.@y;
+        guard.graphics.x = xml.@x;
+        guard.graphics.y = xml.@y;
         
-        bodies.addLast(guard);
+        objects.push(guard);
       }      
       
       for each (xml in level.Image) {
         var img:Image = new Image();
-        img.source = ASSET_DIRECTORY + "/" + levelNumber + "/" + xml.@source;
+        img.source = ASSET_DIRECTORY + levelNumber + "/" + xml.@source;
         img.x = xml.@x;
         img.y = xml.@y;
         
