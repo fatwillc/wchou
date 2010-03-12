@@ -16,8 +16,8 @@ package units.wbc
     public function Guard() {
       super();
       
+      _graphics = new Image();
       (graphics as Image).source = _source;
-      
       graphics.width = 83.0;
       graphics.height = 94.0;
       
@@ -26,8 +26,8 @@ package units.wbc
       graphics.cacheAsBitmap = true; 
     }
     
-    override public function hunt(virusCenter:Vector2):void {
-      // A guard is stationary; do nothing.
+    override public function get radius():Number {
+      return 27;
     }
   }
 }

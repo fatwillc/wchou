@@ -1,10 +1,8 @@
 package units {
   
-  import core.GameObject;
   import core.Color;
-  import core.IBoundingCircle;
+  import core.GameObject;
   import core.InputState;
-  import core.ObjectState;
   import core.SoundManager;
   
   import flash.events.TimerEvent;
@@ -44,9 +42,6 @@ package units {
   
     /** Timer for virus launch. */
     private var launchTimer:Timer;
-    
-    /** The direction the virus is currently facing. */
-    private var _direction:Vector2 = new Vector2();
 
     ///////////////////////////////////////////////////////////////////////////
     // EMBEDDED ASSETS
@@ -192,12 +187,8 @@ package units {
     
     /** Rotates virus to face the current mouse position. */
     private function rotateToMouse():void {
-      var m:Matrix = new Matrix();
-      
-      var currentRotation:Number = graphics.rotation * Geometry.DEGREES_TO_RADIANS;
- 
       var halfWidth:Number = graphics.width / 2;
-      var halfHeight:Number = graphics.height / 2;      
+      var halfHeight:Number = graphics.height / 2;
       
       // Virus-center-to-mouse vector in virus's local coordinates.
       var vx:Number = graphics.mouseX - halfWidth;
@@ -205,26 +196,18 @@ package units {
       
       // Since Flex takes the top-left corner of the image as the rotation axis by default, 
       // need to translate to set center, and translate back after rotation.
+      var m:Matrix = new Matrix();
       m.translate(-halfWidth, -halfHeight);
       m.rotate(Math.atan2(vy, vx) + Geometry.PI_OVER_TWO);
       m.translate(halfWidth, halfHeight);
       
       // Concat world transform onto local transform.
       m.concat(graphics.transform.matrix);
-      
       graphics.transform.matrix = m;
-      
-      // Set virus direction.
-      currentRotation = graphics.rotation * Geometry.DEGREES_TO_RADIANS;
-
-      _direction.x = Math.sin(currentRotation);
-      _direction.y = -Math.cos(currentRotation);
-      _direction.normalize(1.0);
     }
     
-    /** The direction the virus is currently facing. */
-    public function get direction():Vector2 {
-      return _direction;
+    override public function get radius():Number {
+      return 17;
     }
   }
 }

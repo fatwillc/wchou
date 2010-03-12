@@ -2,9 +2,12 @@ package core {
   
   import flash.display.DisplayObject;
   import flash.display.Sprite;
+  import flash.geom.Matrix;
+  import flash.geom.Point;
   
   import mx.effects.Fade;
   import mx.events.EffectEvent;
+  import mx.flash.UIMovieClip;
   
   import utils.Geometry;
   import utils.Vector2;
@@ -135,25 +138,71 @@ package core {
       deathFade.play([graphics]);
     }
     
+    public function get direction():Vector2
+    {
+      var currentRotation:Number = graphics.rotation * Geometry.DEGREES_TO_RADIANS;
+      
+      var dir:Vector2 = new Vector2();
+      dir.x = Math.sin(currentRotation);
+      dir.y = -Math.cos(currentRotation);
+      dir.normalize(1.0);
+      
+      return dir;
+    }    
+    
     public function get center():Vector2 {
-      var c:Vector2 = new Vector2(_graphics.x, _graphics.y);
-      
-      var currentRotation:Number = _graphics.rotation * Geometry.DEGREES_TO_RADIANS;
-      
-      var direction:Vector2 = new Vector2();
-      direction.x = Math.sin(currentRotation);
-      direction.y = -Math.cos(currentRotation);
-      direction.normalize(1.0);
-      
-      c.x -= (direction.x + direction.y) * radius;
-      c.y -= (direction.y - direction.x) * radius;
-      
-      return c;
+      // Standard Flex components define rotation wrt the top left corner,
+      // but imported SWCs define rotation wrt the center of the UIMovieClip.
+      if (graphics is UIMovieClip)
+      {
+        return new Vector2(graphics.x, graphics.y);
+      } 
+      else
+      {
+        var center:Vector2 = new Vector2(graphics.x, graphics.y);
+        
+        var u:Vector2 = direction;
+        var v:Vector2 = new Vector2(u.y, -u.x);
+        center.acc(u, -graphics.height / 2);
+        center.acc(v, -graphics.width / 2);
+        
+        return center;
+      }
     }
     
-    public function get radius():Number {
-      return Math.min(_graphics.width, _graphics.height) / 2; 
+    public function get radius():Number
+    {
+      return Math.min(graphics.width, graphics.height) / 2;
     }
+    
+    /** 
+     * Rotates graphics object about its center. 
+     * 
+     * @param angle - The amount to rotate in degrees.
+     */
+    protected function rotateAboutCenter(angle:Number):void 
+    {      
+      // Standard Flex components define rotation wrt the top left corner,
+      // but imported SWCs define rotation wrt the center of the UIMovieClip.
+      if (graphics is UIMovieClip)
+      {
+        graphics.rotation += angle;
+      }
+      else
+      {
+        var offset:Point = new Point(graphics.width / 2, graphics.height / 2);
+        
+        var m:Matrix = new Matrix();
+        
+        m.translate(-offset.x, -offset.y);
+        m.rotate(angle * Geometry.DEGREES_TO_RADIANS);
+        m.translate(offset.x, offset.y);
+        
+        m.concat(graphics.transform.matrix);
+        
+        graphics.transform.matrix = m;
+      }
+    }    
     
   }
 }

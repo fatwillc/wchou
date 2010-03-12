@@ -24,6 +24,7 @@ package units.wbc
     public function Hunter() {
       super();
       
+      _graphics = new Image();
       (graphics as Image).source = _source;
       graphics.width = 54.0;
       graphics.height = 51.8;

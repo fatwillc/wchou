@@ -85,6 +85,7 @@ either expressed or implied, of William Chou.
       import mx.effects.Fade;
       import mx.effects.easing.Cubic;
       
+      [Bindable]
       public static var DEBUG:Boolean = false;
       
       /////////////////////////////////////////////////////////////////////////
@@ -181,7 +182,7 @@ either expressed or implied, of William Chou.
       /** Starts a new game to play. */
       private function play(level:Level = null):void {      
         // If a custom level is provided, load it. Otherwise, load level 0.    
-        currentLevel = (level != null) ? level : Level.getLevel(1); // TODO 0);
+        currentLevel = (level != null) ? level : Level.getLevel(0);
         
         // Reset foreground/background.
         foreground.removeAllChildren();
@@ -263,8 +264,7 @@ either expressed or implied, of William Chou.
       
       /** The main game loop. */
       private function update(e:TimerEvent):void {
-        if (DEBUG)
-          foreground.graphics.clear();
+        foreground.graphics.clear();
         
         var virusCenter:Vector2    = virus.center;
         var virusDirection:Vector2 = virus.direction;
@@ -432,22 +432,29 @@ either expressed or implied, of William Chou.
     height="400"
     horizontalScrollPolicy="off" verticalScrollPolicy="off" />
     
+  <!--- Toggles game debug state. -->
+  <mx:Image id="wrench"
+    x="713" y="5"
+    source="@Embed(source='assets/ui/wrench.swf')"
+    toolTip="Toggle debug"
+    click="Symptom.DEBUG = !Symptom.DEBUG;" />  
+    
   <!--- Opens level editor. -->
   <mx:Image id="hammer"
-    x="770" y="5"
+    x="743" y="5"
     source="@Embed(source='assets/ui/hammer.swf')" 
     toolTip="Level editor"
     click="openLevelEditor();" />
     
   <!--- Opens dialog for loading a custom level. -->
   <mx:Image id="folder"
-    x="772" y="35"
+    x="770" y="7"
     source="@Embed(source='assets/ui/folder.swf')"
     toolTip="Load custom level"
     click="fileReference.browse([new FileFilter('Symptom Level', '*.xml')]);" />
-  
+    
   <!-- DEBUG -->
-  <mx:Label id="fps" color="white" />
+  <mx:Label id="fps" color="white" visible="{Symptom.DEBUG}" />
   
   <!--
   /////////////////////////////////////////////////////////

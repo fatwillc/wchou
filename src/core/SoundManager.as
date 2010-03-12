@@ -39,8 +39,8 @@ package core {
     /** Channel for music. */
     private static var musicChannel:SoundChannel;
     
-    private static var redViolin:SoundAsset;
-    [Bindable] [Embed(source="assets/sound/RedViolin.mp3")] private static var red_violin:Class;
+    private static var themeSong:SoundAsset;
+    [Bindable] [Embed(source="assets/sound/Theme96.mp3")] private static var theme_song:Class;
 
     ///////////////////////////////////////////////////////
     // METHODS
@@ -49,7 +49,7 @@ package core {
     /** Create a new sound manager. */
     public static function initialize():void  {
       // Music.
-      redViolin = SoundAsset(new red_violin());
+      themeSong = SoundAsset(new theme_song());
  
       // Sound assets.
       infects = new Vector.<SoundAsset>();
@@ -64,7 +64,7 @@ package core {
     public static function playGameMusic():void {
       stopMusic();
       
-      musicChannel = redViolin.play();
+      musicChannel = themeSong.play(0, int.MAX_VALUE);
     }
     
     /** Stops playing of all music. */
