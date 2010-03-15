@@ -1,6 +1,6 @@
 package core {
   
-  import flash.display.DisplayObject;
+  import flash.display.InteractiveObject;
   import flash.display.Sprite;
   import flash.geom.Matrix;
   import flash.geom.Point;
@@ -12,15 +12,18 @@ package core {
   import utils.Geometry;
   import utils.Vector2;
 
-  /** An interactive object and Newtonian body (sans rotational forces). */
+  /** An interactive object and Newtonian body. */
   public class GameObject implements IBoundingCircle  {
     
     ///////////////////////////////////////////////////////////////////////////
     // CONSTANTS
     ///////////////////////////////////////////////////////////////////////////
     
-    /** Coefficient of friction. */
-    private const F_DRAG:Number = 0.01;
+    /** Coefficient of friction for linear forces. */
+    private const LINEAR_DRAG:Number = 0.01;
+    
+    /** Rotational pseudo-friction coefficient. */
+    private const ROTATIONAL_DRAG:Number = 0.05;
     
     /** Coefficient of restitution (amount of bounce after a collision). */
     private const RESTITUTION:Number = 0.5;
@@ -41,6 +44,9 @@ package core {
     /** Current velocity. */
     public var v:Vector2;
     
+    /** Current angular velocity in degrees. */
+    public var w:Number;
+    
     /** Mass of the object. */
     public var mass:Number;
     
@@ -49,10 +55,10 @@ package core {
     ///////////////////////////////////////////////////////////////////////////
     
     /** Visual representation of object. */
-    public function get graphics():DisplayObject { return _graphics; }
+    public function get graphics():Sprite { return _graphics; }
     protected var _graphics:Sprite;
     
-    /** Death transition/animation. */
+    /** Default death transition/animation. */
     private var deathFade:Fade;
     
     public function GameObject(mass:Number = 1.0) {
@@ -60,6 +66,7 @@ package core {
       
       F = new Vector2();
       v = new Vector2();
+      w = 0;
       this.mass = mass;
       
       deathFade = new Fade();
@@ -70,20 +77,31 @@ package core {
     
     /** Steps position by a specified timestep. */
     public function step(dt:Number):void {
-      // Drag force.
-      F.x -= v.x * F_DRAG;
-      F.y -= v.y * F_DRAG;
+      // Subclass force accumulations, etc.
+      update(dt);
+      
+      // Drag forces.
+      F.x -= v.x * LINEAR_DRAG;
+      F.y -= v.y * LINEAR_DRAG;
+      w *= 1 - ROTATIONAL_DRAG;
       
       // Apply forces.
       v.acc(F, 1.0/mass);
-      
-      checkBoundaries();
-      
+
       // Perform step.
       if (!isPinned) {
         _graphics.x += dt * v.x;
         _graphics.y += dt * v.y;
+        
+        if (Math.abs(w) > 0) {          
+          rotateAboutCenter(w);
+        }
       }
+      
+      checkBoundaries();
+      
+      // Clear forces.
+      F.zero();
       
       if (Symptom.DEBUG && graphics.parent != null) {
         // Draw bounding circle.
@@ -138,6 +156,10 @@ package core {
       deathFade.play([graphics]);
     }
     
+    /** 
+     * Gets the current direction this object is facing 
+     * (with respect to (width/2, 0) object coordinates). 
+     */
     public function get direction():Vector2
     {
       var currentRotation:Number = graphics.rotation * Geometry.DEGREES_TO_RADIANS;
@@ -181,7 +203,7 @@ package core {
      * @param angle - The amount to rotate in degrees.
      */
     protected function rotateAboutCenter(angle:Number):void 
-    {      
+    {            
       // Standard Flex components define rotation wrt the top left corner,
       // but imported SWCs define rotation wrt the center of the UIMovieClip.
       if (graphics is UIMovieClip)

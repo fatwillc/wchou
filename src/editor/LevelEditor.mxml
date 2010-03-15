@@ -19,7 +19,7 @@ The level editor.
   horizontalScrollPolicy="off"
   showCloseButton="true"
   close="close(event);"
-  creationComplete="init();">
+  creationComplete="callLater(initPlaceables);">
 
     <mx:Script>
     <![CDATA[
@@ -37,8 +37,11 @@ The level editor.
       import mx.events.CloseEvent;
       import mx.managers.PopUpManager;
       
+      /** Currently placed objects. */
+      private var placedObjects:Vector.<GameObject> = new Vector.<GameObject>();
+      
       /** The selected new graphics object to insert. */
-      private var selection:DisplayObject;
+      private var selection:Sprite;
       
       /** Is the current mouse-selected position for the new Image valid? */
       private var isValidPosition:Boolean = false;
@@ -49,20 +52,38 @@ The level editor.
       [Bindable]
       private var output:XML;
       
-      private var sampleRBC:RBC = new RBC();
-
-      private function init():void {
-         callLater(_init);
-      }
+      ///////////////////////////////////////////
+      // PLACEABLE OBJECTS
+      ///////////////////////////////////////////
       
-      private function _init():void {
+      private var sampleEndArea:EndArea = new EndArea();
+      private var sampleRBC:RBC = new RBC();
+      private var sampleHunter:Hunter = new Hunter();
+      private var sampleGuard:Guard = new Guard();
+
+      /** Initializes sample placeable objects. */
+      private function initPlaceables():void {
+        endContainer.addChild(sampleEndArea.graphics);
+        sampleEndArea.graphics.addEventListener(MouseEvent.MOUSE_DOWN, function ():void { select(EndArea); });
+        sampleEndArea.graphics.buttonMode = sampleEndArea.graphics.useHandCursor = sampleEndArea.graphics.mouseChildren = true;
+        
         rbcContainer.addChild(sampleRBC.graphics);
-        sampleRBC.graphics.addEventListener(MouseEvent.CLICK, function ():void { select(RBC); });
+        sampleRBC.graphics.addEventListener(MouseEvent.MOUSE_DOWN, function ():void { select(RBC); });
+        sampleRBC.graphics.buttonMode = sampleRBC.graphics.useHandCursor = sampleRBC.graphics.mouseChildren = true;
+        
+        hunterContainer.addChild(sampleHunter.graphics);
+        sampleHunter.graphics.addEventListener(MouseEvent.MOUSE_DOWN, function ():void { select(Hunter); });
+        sampleHunter.graphics.buttonMode = sampleHunter.graphics.useHandCursor = sampleHunter.graphics.mouseChildren = true;
+        
+        guardContainer.addChild(sampleGuard.graphics);
+        sampleGuard.graphics.addEventListener(MouseEvent.MOUSE_DOWN, function ():void { select(Guard); });
+        sampleGuard.graphics.buttonMode = sampleGuard.graphics.useHandCursor = sampleGuard.graphics.mouseChildren = true;
       }
 
       /** Creates a new unit under the user's cursor for placement on the level. */
       private function select(cls:Class):void {
         var object:GameObject = new cls();
+        placedObjects.push(object);
 
         switch (cls) {
           case RBC:
@@ -70,9 +91,8 @@ The level editor.
             break;
         }
         
-        selection = object.graphics;
-        
-        // selection.useHandCursor = selection.buttonMode = selection.mouseChildren = true;
+        selection = object.graphics;  
+        selection.useHandCursor = selection.buttonMode = selection.mouseChildren = true;
         
         onMouseMove();
         selection.alpha = 0.6;
@@ -100,26 +120,9 @@ The level editor.
         isValidPosition = true;
         
         // Check if within screen bounds.
-        if (selection.x > 0 && selection.x < container.width - selection.width && 
-            selection.y > 0 && selection.y < container.height - selection.height) 
+        if (selection.x < 0 || selection.x > container.width - selection.width || 
+            selection.y < 0 || selection.y > container.height - selection.height) 
             {
-          if (selection is GameObject) {
-            // Check for intersections with other bodies.
-            var bodies:Array = level.getChildren().filter(
-              function(item:*, i:int, a:Array):Boolean { return (item is GameObject); }
-              );
-            
-            var p:Vector2 = new Vector2(level.mouseX, level.mouseY);
-            var r:Number = (selection as IBoundingCircle).radius;
-            
-            for each (var b:IBoundingCircle in bodies) {
-              if (Geometry.intersect(p, r, b.center, b.radius) != null) {
-                isValidPosition = false;
-                break;
-              }
-            }
-          }
-        } else {
           isValidPosition = false;
         }
         
@@ -169,21 +172,22 @@ The level editor.
           <Symptom length={Math.round(level.width)}>
           </Symptom>;
         
-        var images:Array = level.getChildren();
-        
-        for each (var img:Image in images) {
+        for each (var object:GameObject in placedObjects) {
           var xml:XML;
           
-          if (img is EndArea) {
-            xml = <EndArea x={img.x} y={img.y} />;
-          } else if (img is RBC) {
-            var rbc:RBC = img as RBC;
+          var x:int = object.graphics.x;
+          var y:int = object.graphics.y;
+          
+          if (object is EndArea) {
+            xml = <EndArea x={x} y={y} />;
+          } else if (object is RBC) {
+            var rbc:RBC = object as RBC;
             
-            xml = <RBC x={img.x} y={img.y} color={Color.toString(rbc.color)} dna={Color.toString(rbc.dna)} />;
-          } else if (img is Guard) {
-            xml = <Guard x={img.x} y={img.y} />;
-          } else if (img is Hunter) {
-            xml = <Hunter x={img.x} y={img.y} />;
+            xml = <RBC x={x} y={y} color={Color.toString(rbc.color)} dna={Color.toString(rbc.dna)} />;
+          } else if (object is Guard) {
+            xml = <Guard x={x} y={y} />;
+          } else if (object is Hunter) {
+            xml = <Hunter x={x} y={y} />;
           } else {
             throw new Error("Unrecognized object on level canvas.");
           }
@@ -262,10 +266,7 @@ The level editor.
     borderColor="0xbb9999"
     borderThickness="1">
     
-    <mx:Label text="End area" />
-    <units:EndArea id="endArea"
-      useHandCursor="true" mouseChildren="true" buttonMode="true"
-      mouseDown="select(EndArea);" />
+    <mx:Canvas id="endContainer" />
     
     <mx:HRule width="100%" height="15" />
     
@@ -298,13 +299,9 @@ The level editor.
     
     <mx:HRule width="100%" height="15" />
     
-    <mx:Image source="assets/units/wbc/guard.png"
-      useHandCursor="true" buttonMode="true" mouseChildren="true" 
-      mouseDown="select(Guard);" />
+    <mx:Canvas id="hunterContainer" />
     
-    <mx:Image source="assets/units/wbc/hunter.swf"
-      useHandCursor="true" buttonMode="true" mouseChildren="true" 
-      mouseDown="select(Hunter);" />
+    <mx:Canvas id="guardContainer" />
     
     <mx:HRule width="100%" height="15" />
     

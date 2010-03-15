@@ -96,12 +96,12 @@ either expressed or implied, of William Chou.
       public static const WIDTH:Number = 800;
       /** Height of the game screen. */
       public static const HEIGHT:Number = 400;
-      
       /** Maximum length of a level. */
       public static const MAX_LEVEL_LENGTH:Number = 4000;
       
       /** Amount of simulation steps per second (amount of game loop iterations per second). */
-      public static const TICKS_PER_SECOND:int = 30;
+      private const TICKS_PER_SECOND:int = 24;
+      /** Amount of time elapsed per simulation step. */
       private const DT:Number = 1.0 / TICKS_PER_SECOND;
       
       /** 
@@ -109,9 +109,6 @@ either expressed or implied, of William Chou.
        * i.e. for every 1 pixel of foreground movement, the amount of background movement. 
        */
       public static const BACKGROUND_PAN_FACTOR:Number = 0.85;
-      
-      /** The maximum distance from virus to center of end area that will trigger player victory. */
-      public static const VICTORY_DISTANCE:Number = 20.0;
       
       /////////////////////////////////////////////////////////////////////////
       // VARIABLES
@@ -126,12 +123,8 @@ either expressed or implied, of William Chou.
       /** The current level being played. */
       private var currentLevel:Level;
       
-      /** The player-controlled virus. */
-      private var virus:Virus;
-
       private function init():void {
-        if (DEBUG)
-          new FPS(fps);
+        new FPS(fps);
                 
         InputState.initialize(this);
         
@@ -147,17 +140,12 @@ either expressed or implied, of William Chou.
         stage.addEventListener(KeyboardEvent.KEY_DOWN, keyListener);
         stage.addEventListener(KeyboardEvent.KEY_UP, keyListener);
         
-        /////////////////////////////////////////
-        // Initialize game variables.
-        /////////////////////////////////////////
-        virus = new Virus();
-
         loopTimer = new Timer(1000 / TICKS_PER_SECOND);
         loopTimer.addEventListener(TimerEvent.TIMER, update);
         
-        play();
-        
         SoundManager.playGameMusic();
+        
+        play();   
       }
       
       private function keyListener(e:KeyboardEvent):void {
@@ -180,20 +168,21 @@ either expressed or implied, of William Chou.
       }
       
       /** Starts a new game to play. */
-      private function play(level:Level = null):void {      
-        // If a custom level is provided, load it. Otherwise, load level 0.    
+      private function play(level:Level = null):void {          
         currentLevel = (level != null) ? level : Level.getLevel(0);
         
-        // Reset foreground/background.
+        /////////////////////////////////////////
+        // Set up level styles.
+        /////////////////////////////////////////
+        
         foreground.removeAllChildren();
-        foreground.alpha = 0.0;
+        foreground.alpha = 0;
         foreground.width = currentLevel.length;
         foreground.x = foreground.y = 0;
         
         background.width = foreground.width / BACKGROUND_PAN_FACTOR;
         background.x = background.y = 0;
         
-        // Load level style.
         switch (currentLevel.style) {
           case Level.TITLE:
             background.setTileImage(skin);
@@ -206,10 +195,6 @@ either expressed or implied, of William Chou.
             break;
         }
         
-        // Having the virus as the first element makes collision detection a bit simpler.
-        currentLevel.objects.push(virus);
-        currentLevel.objects.reverse();
-        
         /////////////////////////////////////////
         // Load level data.
         /////////////////////////////////////////
@@ -217,31 +202,22 @@ either expressed or implied, of William Chou.
         for each (var img:Image in currentLevel.images) {
           foreground.addChild(img);
         }
-        
-        for each (var ea:EndArea in currentLevel.endAreas) {
-          foreground.addChild(ea);
+
+        for each (var object:GameObject in currentLevel.getObjects()) {
+          foreground.addChild(object.graphics);
         }
-        
-        for each (var body:GameObject in currentLevel.objects) {
-          foreground.addChild(body.graphics);
-        }
-        
-        virus.reset();
-        virus.graphics.x = 100;
-        virus.graphics.y = height/2 - virus.graphics.height/2;
-        foreground.addChild(virus.graphics);
         
         /////////////////////////////////////////
         // Start game.
         /////////////////////////////////////////
                         
         levelTransition.play([foreground, background], true);
-        
+
         loopTimer.start();
       }
       
       /** Ends the game. */
-      private function endGame(isWin:Boolean):void {
+      public function endGame(isWin:Boolean):void {
         loopTimer.stop();
         
         // If player won and next level exists, advance to it.
@@ -265,109 +241,28 @@ either expressed or implied, of William Chou.
       /** The main game loop. */
       private function update(e:TimerEvent):void {
         foreground.graphics.clear();
-        
-        var virusCenter:Vector2    = virus.center;
-        var virusDirection:Vector2 = virus.direction;
-        var virusSpeed:Number      = virus.v.length();
-        
-        /////////////////////////////////////////
-        // REMOVE DESTROYED GAME OBJECTS
-        /////////////////////////////////////////
-        
-        var filterDestroy:Function = function(object:GameObject, i:int, v:Vector.<GameObject>):Boolean {
-          if (object.state == ObjectState.DESTROY)
-            foreground.removeChild(object.graphics);
-          
-          return object.state == ObjectState.ACTIVE;
-        }
-        currentLevel.objects = currentLevel.objects.filter(filterDestroy);
-        
-        /////////////////////////////////////////
-        // CHECK FOR VICTORY CONDITION
-        /////////////////////////////////////////
-        
-        for each (var end:EndArea in currentLevel.endAreas) {            
-          var center:Vector2 = new Vector2(end.x + end.width/2, end.y + end.height/2);
-          
-          if (virusCenter.subtract(center).length() < VICTORY_DISTANCE) {
-            endGame(true);
-          }
-        }
-        
-        /////////////////////////////////////////
-        // CLEAR FORCES
-        /////////////////////////////////////////
-        
-        for each (var object:GameObject in currentLevel.objects)
-          object.F.zero();
 
         /////////////////////////////////////////
-        // CROSS-OBJECT ACTIONS
+        // CHECK FOR VICTORY/LOSS CONDITION
         /////////////////////////////////////////
         
-        // WBC ATTRACTION.
-        for each (var object:GameObject in currentLevel.objects) {
-          if (object is WBC) {
-            if (!virus.isInfecting)
-              (object as WBC).hunt(virusCenter);
-          }
-        }
-
-        // COLLISION PENALTY FORCES.
-        var k:Number = 10.0;
-
-        for (var i:int = 0; i < currentLevel.objects.length; i++) {
-          var oi:GameObject = currentLevel.objects[i];
-          
-          for (var j:int = i+1; j < currentLevel.objects.length; j++) {
-            var oj:GameObject = currentLevel.objects[j];
-            
-            var normal:Vector2 = Geometry.intersect(oi.center, oi.radius, oj.center, oj.radius);
-            if (normal != null) {
-              // Virus-specific collisions.
-              // Note: Assumes that virus is the first element in the list of objects.
-              if (oi == virus) {
-                if (virus.isInfecting) {
-                  break;
-                }
-                
-                if (oj is WBC) {
-                  endGame(false);
-                  return;
-                }
-                
-                 if (oj is RBC && normal.dot(virusDirection) > Geometry.COS_30 && virus.dna == (oj as RBC).color) {
-                  virus.infect(oj as RBC);
-                  break;
-                } 
-              }
-              
-              var d:Number = normal.length();
-              normal.normalize();
-              
-              var relativeV:Vector2 = oi.v.subtract(oj.v);
-              if (relativeV.dot(normal) < 0)
-                continue;
-              
-              oi.F.acc(normal, -k * d);
-              oj.F.acc(normal,  k * d);
-            }
-          }
-        }
+        if (currentLevel.state == LevelState.WIN)
+          endGame(true);
+        else if (currentLevel.state == LevelState.LOSE)
+          endGame(false);
         
         /////////////////////////////////////////
-        // OBJECT UPDATES
+        // UPDATE LEVEL/OBJECTS
         /////////////////////////////////////////
         
-        for each (var object:GameObject in currentLevel.objects)
-          object.update(DT);
+        currentLevel.update(DT);
         
         /////////////////////////////////////////
         // SCROLL SCREEN
         /////////////////////////////////////////
 
         var epsilon:Number = 10;
-        virusCenter = virus.center;
+        var virusCenter:Vector2 = currentLevel.virusPosition;
         
         // Scroll screen according to virus position.
         if (virusCenter.x > width/2 && foreground.x > -foreground.width + width + epsilon) {
@@ -375,17 +270,10 @@ either expressed or implied, of William Chou.
           
           foreground.x += delta;
           background.x += delta * BACKGROUND_PAN_FACTOR;
-        }        
+        }
         
         /////////////////////////////////////////
-        // PERFORM TIMESTEP
-        /////////////////////////////////////////
-        
-        for each (var object:GameObject in currentLevel.objects)
-          object.step(DT);
-        
-        /////////////////////////////////////////
-        // OTHER UPDATES
+        // UPDATE INPUT STATE
         /////////////////////////////////////////
         
         InputState.update();

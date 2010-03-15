@@ -23,8 +23,10 @@ package units {
     
     /** Force of virus movement. */
     private static const F_MOVE:Number = 6.0;
+    
     /** Maximum attainable speed of the virus. */
     private static const MAX_SPEED:Number = 400.0;
+    
     /** Window of time immediately following cell infection for launching. */
     private static const LAUNCH_TIME_MS:Number = 2000.0;
 
@@ -72,6 +74,11 @@ package units {
       launchTimer.addEventListener(TimerEvent.TIMER, launch);
     } 
     
+    /** 
+     * Infects a red blood cell. 
+     * 
+     * @param rbc - the RBC to infect.
+     */
     public function infect(rbc:RBC):void {                  
       SoundManager.playRandomInfect();
       
@@ -148,7 +155,6 @@ package units {
       
       SoundManager.playRandomLaunch();
       
-      v.acc(direction, MAX_SPEED);
       img.graphics.clear();
       toggleInfect(false);
 
@@ -156,6 +162,9 @@ package units {
       infected = null;
       
       launchTimer.reset();
+      
+      if (e == null)
+        v.acc(direction, MAX_SPEED);
     }
     
     /** Changes the virus's DNA color. */

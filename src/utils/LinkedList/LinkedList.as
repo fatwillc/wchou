@@ -4,7 +4,7 @@ package utils.LinkedList {
    * **************************************************************************
    * IMPORTANT: 
    * Use is deprecated. It turns out that AS3.Vector is at least twice as 
-   * performant for every operation, even when taking into account  filtering 
+   * performant for every operation, even when taking into account filtering 
    * elements and resizing itself on pushes.
    * **************************************************************************
    * 
