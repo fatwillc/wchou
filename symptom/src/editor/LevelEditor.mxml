@@ -1,0 +1,320 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--- 
+The level editor.
+-->
+<mx:TitleWindow 
+  xmlns:mx="http://www.adobe.com/2006/mxml" 
+  xmlns:units="units.*"
+  xmlns:wbc="units.wbc.*"
+  width="670"
+  height="350" 
+  title="Level Editor" 
+  layout="absolute"
+  cornerRadius="0"
+  backgroundColor="0xe9dfdf"
+  backgroundAlpha="1"
+  borderColor="0xe9dfdf"
+  borderAlpha="1"
+  verticalScrollPolicy="off"
+  horizontalScrollPolicy="off"
+  showCloseButton="true"
+  close="close(event);"
+  creationComplete="callLater(initPlaceables);">
+
+    <mx:Script>
+    <![CDATA[
+      import core.GameObject;
+      import core.IBoundingCircle;
+      import core.Color;
+      import units.*;
+      import units.wbc.*;
+      import utils.Vector2;
+      import utils.Geometry;
+      import utils.LinkedList.*;
+      import __AS3__.vec.Vector;
+      import mx.controls.Image;
+      import mx.controls.Alert;
+      import mx.events.CloseEvent;
+      import mx.managers.PopUpManager;
+      
+      /** Currently placed objects. */
+      private var placedObjects:Vector.<GameObject> = new Vector.<GameObject>();
+      
+      /** The selected new graphics object to insert. */
+      private var selection:Sprite;
+      
+      /** Is the current mouse-selected position for the new Image valid? */
+      private var isValidPosition:Boolean = false;
+      /** Is the user currently picking up an Image? */
+      private var isPickUp:Boolean = false;
+      
+      /** XML output of this level. */
+      [Bindable]
+      private var output:XML;
+      
+      ///////////////////////////////////////////
+      // PLACEABLE OBJECTS
+      ///////////////////////////////////////////
+      
+      private var sampleEndArea:EndArea = new EndArea();
+      private var sampleRBC:RBC = new RBC();
+      private var sampleHunter:Hunter = new Hunter();
+      private var sampleGuard:Guard = new Guard();
+
+      /** Initializes sample placeable objects. */
+      private function initPlaceables():void {
+        endContainer.addChild(sampleEndArea.graphics);
+        sampleEndArea.graphics.addEventListener(MouseEvent.MOUSE_DOWN, function ():void { select(EndArea); });
+        sampleEndArea.graphics.buttonMode = sampleEndArea.graphics.useHandCursor = sampleEndArea.graphics.mouseChildren = true;
+        
+        rbcContainer.addChild(sampleRBC.graphics);
+        sampleRBC.graphics.addEventListener(MouseEvent.MOUSE_DOWN, function ():void { select(RBC); });
+        sampleRBC.graphics.buttonMode = sampleRBC.graphics.useHandCursor = sampleRBC.graphics.mouseChildren = true;
+        
+        hunterContainer.addChild(sampleHunter.graphics);
+        sampleHunter.graphics.addEventListener(MouseEvent.MOUSE_DOWN, function ():void { select(Hunter); });
+        sampleHunter.graphics.buttonMode = sampleHunter.graphics.useHandCursor = sampleHunter.graphics.mouseChildren = true;
+        
+        guardContainer.addChild(sampleGuard.graphics);
+        sampleGuard.graphics.addEventListener(MouseEvent.MOUSE_DOWN, function ():void { select(Guard); });
+        sampleGuard.graphics.buttonMode = sampleGuard.graphics.useHandCursor = sampleGuard.graphics.mouseChildren = true;
+      }
+
+      /** Creates a new unit under the user's cursor for placement on the level. */
+      private function select(cls:Class):void {
+        var object:GameObject = new cls();
+        placedObjects.push(object);
+
+        switch (cls) {
+          case RBC:
+            (object as RBC).setColors(sampleRBC.color, sampleRBC.dna);
+            break;
+        }
+        
+        selection = object.graphics;  
+        selection.useHandCursor = selection.buttonMode = selection.mouseChildren = true;
+        
+        onMouseMove();
+        selection.alpha = 0.6;
+        addChild(selection);
+        addSelectionListeners();
+      }
+      
+      /** Begins mouse event listening for movement and placement of selected units. */
+      private function addSelectionListeners():void {
+        addEventListener(MouseEvent.MOUSE_MOVE, onMouseMove);
+        addEventListener(MouseEvent.MOUSE_UP, onMouseUp);
+      }
+      
+      /** Ends mouse event listening after placement of a selected unit. */
+      private function removeSelectionListeners():void {
+        removeEventListener(MouseEvent.MOUSE_MOVE, onMouseMove);
+        removeEventListener(MouseEvent.MOUSE_UP, onMouseUp);
+      }
+      
+      /** Centers the selected image to the mouse and checks if this position is valid. */
+      private function onMouseMove(e:MouseEvent = null):void {
+        selection.x = container.mouseX - selection.width/2;
+        selection.y = container.mouseY - selection.height/2;
+        
+        isValidPosition = true;
+        
+        // Check if within screen bounds.
+        if (selection.x < 0 || selection.x > container.width - selection.width || 
+            selection.y < 0 || selection.y > container.height - selection.height) 
+            {
+          isValidPosition = false;
+        }
+        
+        selection.filters = isValidPosition ? [glowGreen] : [glowRed];
+      }
+      
+      /** Places selected image in the current mouse position if possible, otherwise nullifies selection. */
+      private function onMouseUp(e:MouseEvent):void {
+        removeChild(selection);
+        
+        if (isValidPosition) {
+          selection.alpha = 1;
+          selection.filters = null;
+          
+          level.addChild(selection);
+          selection.x = level.mouseX - selection.width/2;
+          selection.y = level.mouseY - selection.height/2;
+          
+          selection.addEventListener(MouseEvent.MOUSE_DOWN, pickUp);
+          
+          lengthSlider.minimum = Math.max(selection.x + selection.width, lengthSlider.minimum);
+        }
+
+        selection = null;
+        removeSelectionListeners();
+      }
+      
+      /** "Picks up" an already placed Image in the level. */
+      private function pickUp(e:MouseEvent):void {
+        isPickUp = true;
+          
+        selection = e.currentTarget as Image;
+        
+        selection.removeEventListener(MouseEvent.MOUSE_DOWN, pickUp);
+        level.removeChild(selection);
+        
+        selection.alpha = 0.6;
+        onMouseMove();
+        addChild(selection);
+        
+        addSelectionListeners();
+      }
+      
+      /** Serializes current level data and units into XML and opens save dialog box. */
+      private function save():void {
+        output =
+          <Symptom length={Math.round(level.width)}>
+          </Symptom>;
+        
+        for each (var object:GameObject in placedObjects) {
+          var xml:XML;
+          
+          var x:int = object.graphics.x;
+          var y:int = object.graphics.y;
+          
+          if (object is EndArea) {
+            xml = <EndArea x={x} y={y} />;
+          } else if (object is RBC) {
+            var rbc:RBC = object as RBC;
+            
+            xml = <RBC x={x} y={y} color={Color.toString(rbc.color)} dna={Color.toString(rbc.dna)} />;
+          } else if (object is Guard) {
+            xml = <Guard x={x} y={y} />;
+          } else if (object is Hunter) {
+            xml = <Hunter x={x} y={y} />;
+          } else {
+            throw new Error("Unrecognized object on level canvas.");
+          }
+          
+          output.appendChild(xml);
+        }
+        
+        new FileReference().save(output, "MySymptomLevel.xml");
+      }
+      
+      /** Resets level data and removes all units. */
+      private function reset():void {
+        Alert.show("Are you sure you want to reset this level?", 
+          "Symptom > Level Editor", 
+          Alert.YES | Alert.NO, 
+          this, 
+          _reset, 
+          null, 
+          Alert.NO);    
+      }
+      
+      // Listener for reset().
+      private function _reset(e:CloseEvent):void {
+        if (e.detail == Alert.YES) {  
+          level.height = lengthSlider.value = 600;
+          level.removeAllChildren();
+        }
+      }
+      
+      /** Exits the level editor. */
+      private function close(e:CloseEvent):void {
+        Alert.show("Are you sure you want to exit the level editor?", 
+          "Symptom Level Editor", 
+          Alert.YES | Alert.NO, 
+          this, 
+          _close, 
+          null, 
+          Alert.NO);
+      }
+      
+      // Listener for close().
+      private function _close(e:CloseEvent):void {
+        if (e.detail == Alert.YES) {
+          PopUpManager.removePopUp(this);         
+        }
+      }
+    ]]>
+  </mx:Script>
+  
+  <!--
+  /////////////////////////////////////////////////////////
+  // COMPONENTS
+  /////////////////////////////////////////////////////////
+  -->
+  
+  <!--- Provides scrollbars for "level" component. -->
+  <mx:Canvas id="container" width="400" height="310">
+    <!--- The visual level representation on which units are placed. -->
+    <mx:Canvas id="level" 
+      width="{Symptom.WIDTH}" height="{Symptom.HEIGHT}" 
+      backgroundColor="white"
+      verticalScrollPolicy="off" />
+  </mx:Canvas>
+  
+  <!--- Level editor control panel. -->
+  <mx:VBox 
+    x="415"
+    width="235"
+    height="310"
+    horizontalAlign="center"
+    verticalScrollPolicy="on"
+    paddingTop="5"
+    paddingLeft="10"
+    paddingRight="10"
+    borderStyle="solid"
+    borderColor="0xbb9999"
+    borderThickness="1">
+    
+    <mx:Canvas id="endContainer" />
+    
+    <mx:HRule width="100%" height="15" />
+    
+    <mx:Label text="Map length" />
+    <mx:HSlider id="lengthSlider"
+      width="100%"
+      minimum="{Symptom.WIDTH}" maximum="{Symptom.MAX_LEVEL_LENGTH}" 
+      labels="['Min.', 'Max.']"
+      liveDragging="false"
+      change="level.width = lengthSlider.value;" />
+      
+    <mx:HRule width="100%" height="15" />
+    
+    <mx:Canvas id="rbcContainer" />
+
+    <mx:HBox paddingTop="5">
+      <mx:Label text="Cell" paddingTop="4" />
+      <mx:Image source="assets/editor/red_box.swf"    click="sampleRBC.setColors(Color.RED,    sampleRBC.dna);" />
+      <mx:Image source="assets/editor/blue_box.swf"   click="sampleRBC.setColors(Color.BLUE,   sampleRBC.dna);" />
+      <mx:Image source="assets/editor/green_box.swf"  click="sampleRBC.setColors(Color.GREEN,  sampleRBC.dna);" />
+      <mx:Image source="assets/editor/yellow_box.swf" click="sampleRBC.setColors(Color.YELLOW, sampleRBC.dna);" />
+    </mx:HBox>
+    <mx:HBox>
+      <mx:Label text="DNA" paddingTop="4" />
+      <mx:Image source="assets/editor/red_box.swf"    click="sampleRBC.setColors(sampleRBC.color, Color.RED);" />
+      <mx:Image source="assets/editor/blue_box.swf"   click="sampleRBC.setColors(sampleRBC.color, Color.BLUE);"/>
+      <mx:Image source="assets/editor/green_box.swf"  click="sampleRBC.setColors(sampleRBC.color, Color.GREEN);"/>
+      <mx:Image source="assets/editor/yellow_box.swf" click="sampleRBC.setColors(sampleRBC.color, Color.YELLOW);"/>
+    </mx:HBox>
+    
+    <mx:HRule width="100%" height="15" />
+    
+    <mx:Canvas id="hunterContainer" />
+    
+    <mx:Canvas id="guardContainer" />
+    
+    <mx:HRule width="100%" height="15" />
+    
+    <mx:Button width="100%" height="40" label="Save!" click="save();" />
+    <mx:Button width="100%" label="Reset" click="reset();" />
+  </mx:VBox>
+  
+  <!--
+  /////////////////////////////////////////////////////////
+  // FILTERS
+  /////////////////////////////////////////////////////////
+  -->
+  <mx:GlowFilter id="glowRed"   color="0xff0000" blurX="30" blurY="30" inner="true" />
+  <mx:GlowFilter id="glowGreen" color="0x00ff00" blurX="30" blurY="30" inner="true" />
+  
+</mx:TitleWindow>
