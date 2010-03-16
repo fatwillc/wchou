@@ -1,0 +1,350 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!---
+The Minesweeper game entry point.
+
+///////////////////////////////////////////////////////////////////////////////
+// GAME DESCRIPTION
+///////////////////////////////////////////////////////////////////////////////
+
+A simple Minesweeper clone with three different grid sizes.
+
+///////////////////////////////////////////////////////////////////////////////
+// COPYRIGHT NOTICE
+///////////////////////////////////////////////////////////////////////////////
+
+Copyright 2010 William Chou. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without 
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this 
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice, 
+   this list of conditions and the following disclaimer in the documentation 
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY WILLIAM CHOU ``AS IS'' AND ANY EXPRESS OR IMPLIED
+WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF 
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO 
+EVENT SHALL WILLIAM CHOU OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, 
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR 
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF 
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE 
+OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF 
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+The views and conclusions contained in the software and documentation are those 
+of the authors and should not be interpreted as representing official policies, 
+either expressed or implied, of William Chou.
+
+///////////////////////////////////////////////////////////////////////////////
+
+@author William Chou
+-->
+<mx:Application 
+  xmlns:mx="http://www.adobe.com/2006/mxml" 
+  layout="absolute"
+  width="300" height="300"
+  creationComplete="init();" viewSourceURL="srcview/index.html">
+  
+  <mx:Script>
+    <![CDATA[
+      import __AS3__.vec.Vector;
+      import core.*;
+      
+      // Grid sizes.
+      private static const sizeSmall:int = 8;
+      private static const sizeMedium:int = 12;
+      private static const sizeLarge:int = 16;
+      
+      // Fill colors for btnTime signifying loss, in-play, and win respectively.
+      private const redGradient:Array = [0xFF0000, 0xFF0000];
+      private const grayGradient:Array = [0xE6EEEE, 0xFFFFFF];
+      private const greenGradient:Array = [0x00FF00, 0x00FF00];
+      
+      /** 
+       * The playable square grid of cells where each cell may contain a mine. 
+       */
+      private var grid:Vector.<Vector.<Cell>>;
+      
+      /** 
+       * Current grid size (number of rows/columns). 
+       */
+      private var gridSize:int;
+      
+      /** 
+       * Timer that shows amount of time played per game. 
+       * Stops upon player win or loss and resets on new games.
+       */
+      private var timer:Timer = new Timer(timerInterval);
+      // Tick every 10 milliseconds.
+      private const timerInterval:int = 10;
+
+      /** 
+       * Sets up game state and variables.
+       * Only needs to be run at initial application load. 
+       */
+      private function init():void 
+      {
+        timer.addEventListener(TimerEvent.TIMER, updateTime);
+        
+        newGame();
+      }
+      
+      /** 
+       * Updates the time display. 
+       * 
+       * @param e - triggering time event.
+       */
+      private function updateTime(e:TimerEvent):void
+      {
+        btnTime.label = (timer.currentCount * timerInterval / 1000.0).toFixed(2).toString();
+      }
+
+      /** 
+       * Initializes grid and starts a new game.
+       * 
+       * @param newGridSize - the grid size of the new game.
+       */       
+      private function newGame(newGridSize:int = sizeSmall):void 
+      {
+        foreground.removeAllChildren();
+        
+        gridSize = newGridSize;
+        
+        // Initialize 2D grid.
+        grid = new Vector.<Vector.<Cell>>(gridSize);
+
+        for (var i:int = 0; i < gridSize; i++) 
+        {
+          grid[i] = new Vector.<Cell>(gridSize);
+          
+          for (var j:int = 0; j < gridSize; j++)
+            grid[i][j] = new Cell(this, i, j);
+        }
+        
+        var pad:int = 2;
+        var init_x:int = width  / 2 - (gridSize / 2) * Cell.sideLength + 12;
+        var init_y:int = height / 2 - (gridSize / 2) * Cell.sideLength + 12;
+        var x:int = init_x;
+        var y:int = init_y;
+        
+        // Add to display child list.
+        for (var i:int = 0; i < gridSize; i++)
+        {
+          for (var j:int = 0; j < gridSize; j++)
+          {
+            var cell:Cell = grid[i][j];
+
+            cell.graphics.x = x;
+            cell.graphics.y = y;
+            foreground.addChild(cell.graphics);
+
+            // Move to next row.
+            if (j == newGridSize - 1) 
+            {
+              x = init_x;
+              y += cell.graphics.height + pad;
+            } 
+            else
+              x += cell.graphics.width + pad;
+          }
+        }
+        
+        restart();
+      }
+      
+      /** 
+       * Flushes game state and restarts.
+       */ 
+      private function restart():void 
+      {
+        timer.reset();
+        timer.start();
+        
+        btnTime.setStyle("fillColors", grayGradient);
+
+        // Flush state.
+        for (var i:int = 0; i < gridSize; i++)
+          for (var j:int = 0; j < gridSize; j++)
+            grid[i][j].reset();
+        
+        // Randomly place some mines.
+        var numMines:int = int(0.15 * gridSize * gridSize);
+        for (var i:int = 0; i < numMines; i++)
+        {
+          var x:int = int(Math.random() * gridSize);
+          var y:int = int(Math.random() * gridSize);
+          
+          // Make sure to only place one mine per cell.
+          while (grid[x][y].isMine) 
+          {
+            x = int(Math.random() * gridSize);
+            y = int(Math.random() * gridSize);
+          }
+
+          grid[x][y].isMine = true;
+          
+          // Update neighboring cells with number of neighboring mines.
+          if (x > 0)
+          {
+            if (y > 0)
+              grid[x-1][y-1].neighborMines ++;
+              
+            grid[x-1][y].neighborMines ++;
+            
+            if (y < gridSize - 1)
+              grid[x-1][y+1].neighborMines ++;
+          }
+          
+          if (y > 0)
+            grid[x][y-1].neighborMines ++;
+          if (y < gridSize - 1)
+            grid[x][y+1].neighborMines ++;
+          
+          if (x < gridSize - 1)
+          {
+            if (y > 0)
+              grid[x+1][y-1].neighborMines ++;
+              
+            grid[x+1][y].neighborMines ++;
+            
+            if (y < gridSize - 1)
+              grid[x+1][y+1].neighborMines ++;
+          }
+        }
+      }
+      
+      /** 
+       * Opens a grid cell and recursively opens all cells with no neighboring
+       * mines in the surrounding area.
+       * 
+       * This would be more "OO-like" if the recursion was encapsulated within
+       * Cell.as, but that would require either a global reference to the grid
+       * (which breaks encapsulation) or pointers from each cell to its 
+       * neighbors which, in the context of a 2D array, is the less natural 
+       * solution.
+       * 
+       * @param x - the row number of the cell.
+       * @param y - the column number of the cell.
+       */
+      public function cascadeOpen(x:int, y:int):void 
+      {
+        if (x < 0 || x > gridSize - 1 || y < 0 || y > gridSize - 1)
+          return;
+                         
+        var cell:Cell = grid[x][y];
+        
+        if (cell.state == CellState.OPENED)
+          return;
+        
+        cell.open();
+        
+        if (cell.neighborMines == 0)
+        {
+          cascadeOpen(x-1, y-1);
+          cascadeOpen(x-1, y);
+          cascadeOpen(x-1, y+1);
+          
+          cascadeOpen(x, y-1);
+          cascadeOpen(x, y+1);
+          
+          cascadeOpen(x+1, y-1);
+          cascadeOpen(x+1, y);
+          cascadeOpen(x+1, y+1);
+        }
+      }
+      
+      /** 
+       * Checks if the player has won and changes game state if true.
+       */
+      public function checkWin():void
+      {
+        var isWin:Boolean = true;
+        
+        for (var i:int = 0; i < gridSize; i++)
+        {
+          for (var j:int = 0; j < gridSize; j++)
+          {
+            if (!grid[i][j].isMine && grid[i][j].state == CellState.CLOSED)
+              isWin = false;
+          }
+        }
+        
+        if (isWin)
+        {
+          timer.stop();
+          btnTime.setStyle("fillColors", greenGradient);
+        }
+      }
+      
+      /** 
+       * Changes game state to "player lost".
+       */ 
+      public function lose():void 
+      {
+        timer.stop();
+        
+        for (var i:int = 0; i < gridSize; i++)
+          for (var j:int = 0; j < gridSize; j++)
+            grid[i][j].open();
+            
+        btnTime.setStyle("fillColors", redGradient);
+      }
+      
+      /** 
+       * Changes the current grid size and starts a new game.
+       * If the grid cannot be made smaller or larger, do nothing.
+       * 
+       * @param isIncrease - increases the grid size if true, decreases if false.
+       */
+      private function changeGridSize(isIncrease:Boolean):void 
+      {
+        if (isIncrease && gridSize == sizeLarge)
+          return;
+          
+        if (!isIncrease && gridSize == sizeSmall)
+          return;
+          
+        var newGridSize:int = gridSize;
+        
+        switch (gridSize)
+        {
+          case sizeSmall:
+            newGridSize = isIncrease ? sizeMedium : sizeSmall;
+            break;
+          case sizeMedium:
+            newGridSize = isIncrease ? sizeLarge : sizeSmall;
+            break;
+          case sizeLarge:
+            newGridSize = isIncrease ? sizeLarge : sizeMedium;
+            break;
+        }
+        
+        newGame(newGridSize);
+      }
+    ]]>
+  </mx:Script>
+  
+  <!--- Contains the mine grid. -->
+  <mx:Canvas id="foreground" width="100%" height="100%" />
+  
+  <!--- Displays the timer and restarts games on click. -->
+  <mx:Button id="btnTime" 
+    width="80" 
+    x="110" y="5" 
+    fontFamily="Courier New" fontSize="10" 
+    label="0.00" 
+    click="restart();" />
+
+  <!--- Holds grid changer buttons. -->
+  <mx:VBox verticalGap="0">
+    <!--- Increases grid size. -->
+    <mx:Button width="32" height="16" cornerRadius="1" horizontalGap="0" verticalGap="0" label="+" click="changeGridSize(true);" />
+    <!--- Decreases grid size. -->
+    <mx:Button width="32" height="16" cornerRadius="1" horizontalGap="0" verticalGap="0" label="—" click="changeGridSize(false);" />
+  </mx:VBox>
+  
+</mx:Application>

@@ -1,0 +1,587 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application 
+  xmlns:mx="http://www.adobe.com/2006/mxml" 
+  layout="absolute"
+  width="640"
+  height="480"
+  backgroundColor="0x333333"
+  backgroundGradientAlphas="{[0.0, 0.0]}"
+  horizontalScrollPolicy="off"  verticalScrollPolicy="off"
+  frameRate="24"
+  applicationComplete="init();" 
+  viewSourceURL="srcview/index.html">
+
+  <mx:Style source="styles/asteroids.css" />
+
+  <mx:Script>
+    <![CDATA[
+      import core.*;
+      import units.rocket.Rocket;
+      import units.rocket.upgradables.NumericUpgradable;
+      import units.Ufo;
+      import units.asteroids.*;
+      import units.projectiles.*;
+      import utils.*;
+      import __AS3__.vec.Vector;
+      import mx.effects.easing.Exponential;
+      
+      public static var DEBUG:Boolean = false;
+      
+      /////////////////////////////////////////////////////////////////////////
+      // CONSTANTS
+      /////////////////////////////////////////////////////////////////////////
+      
+      /** Game width. */
+      public static const WIDTH:int = 640;
+      
+      /** Game height. */
+      public static const HEIGHT:int = 480;
+      
+      /** Amount of simulation steps per second (amount of game loop iterations per second). */
+      private const TICKS_PER_SECOND:int = 30;
+      private const DT:Number = 1.0 / TICKS_PER_SECOND;
+      
+      /** The distance at which an offscreen unit will wrap to the opposite side. */
+      private static const OFFSCREEN_PADDING:int = 50;
+      
+      /** Chance for a ufo to spawn on any given frame. */
+      private const UFO_SPAWN_CHANCE:Number = 0.001;
+      
+      /////////////////////////////////////////////////////////////////////////
+      // GAME VARIABLES
+      /////////////////////////////////////////////////////////////////////////
+      
+      /** Timer for the game loop. */
+      private var loopTimer:Timer;
+      
+      /** The player controlled rocket. */
+      private var rocket:Rocket;
+
+      /** Set of bullets in play. */      
+      private var bullets:Vector.<GameObject>;
+      
+      /** Set of asteroids in play. */
+      private var asteroids:Vector.<GameObject>;
+      
+      /** Set of ufos in play. */
+      private var ufos:Vector.<GameObject>;
+      
+      /** The current level being played. */
+      [Bindable]
+      private var currentLevel:int = 0;
+      
+      /** Player's current bankroll. */
+      [Bindable]
+      private var currentMoney:int = 0;
+      
+      /** Amount of money earned so far in current level. */
+      [Bindable]
+      private var moneyThisLevel:int = 0;
+      
+      private function init():void         
+      {
+        SoundManager.initialize();
+//        SoundManager.playGameMusic(true);
+        
+        InputState.initialize(this);
+        
+        loopTimer = new Timer(1000 / TICKS_PER_SECOND);
+        loopTimer.addEventListener(TimerEvent.TIMER, theLoop);
+        
+        rocket = new Rocket();
+                
+        currentState = "menu";
+      }
+      
+      /** 
+       * Starts a game on a certain level. 
+       * Levels only differ in the number of initial asteroids.
+       * 
+       * @param level - The level number.
+       */
+      private function play(level:int):void 
+      {
+        if (level < 0) 
+          throw new Error("Level must be > 0.");
+          
+        loopTimer.stop();
+
+        currentState = "";
+          
+        moneyThisLevel = 0; 
+        
+        foreground.removeAllChildren();
+        
+        bullets = new Vector.<GameObject>();
+        asteroids = new Vector.<GameObject>();
+        ufos = new Vector.<GameObject>();
+        
+        rocket.reset(new Vector2(foreground.width / 2, foreground.height / 2));
+        foreground.addChild(rocket.graphics);
+        
+        var numAsteroids:int = level * 2 + 1;
+        for (var i:int = 0; i < numAsteroids; i++)
+        {          
+          // Spawn asteroid in a random direction away from center of screen
+          // between 150 and 300 units (makes sure not to instakill player).
+          var asteroidPosition:Vector2 = new Vector2(foreground.width / 2, foreground.height / 2);
+          asteroidPosition.acc(Vector2.randomUnitCircle(), Math.random() * 150 + 150);
+
+          var asteroid:Asteroid = new LargeAsteroid(asteroidPosition);
+          asteroids.push(asteroid);
+          foreground.addChild(asteroid.graphics);
+        }
+        
+        levelIn.play([foreground]);
+        
+        loopTimer.start();
+      }
+      
+      /** 
+       * The main game loop. 
+       * Functionality independent to game objects (e.g. rockets, asteroids)
+       * are handled within individual update() calls. Cross-object and global
+       * gameplay logic is handled one abstraction level up, here.
+       * */
+      private function theLoop(e:TimerEvent):void 
+      {
+        // Reusable variables.
+        var i:int;
+        var go:GameObject;
+        var projectile:Projectile;
+        var asteroid:Asteroid;
+        var a:Asteroid, b:Asteroid;
+        var ufo:Ufo;
+        
+        foreground.graphics.clear();
+        
+        /////////////////////////////////////////
+        // REMOVE DESTROYED OBJECTS
+        
+        // Since we only perform this filter at the beginning of each update
+        // cycle (and not in between collision checks), it's possible e.g.
+        // for a single bullet to destroy both an asteroid and a ufo.
+        // This seems to be a reasonable choice and without any averse gameplay
+        // effects so far..
+        
+        var activeFilter:Function = 
+          function(o:GameObject, i:int, v:Vector.<GameObject>):Boolean 
+          {
+            if (o.state == ObjectState.DESTROY)
+              foreground.removeChild(o.graphics);
+            
+            return o.state == ObjectState.ACTIVE;
+          };
+        
+        bullets = bullets.filter(activeFilter);
+        asteroids = asteroids.filter(activeFilter);
+        ufos = ufos.filter(activeFilter);
+        
+        /////////////////////////////////////////
+        // CHECK FOR VICTORY & LOSS CONDITION
+        
+        // Check for collision between the rocket and all other collidables.
+        if (rocket.state == ObjectState.ACTIVE) 
+        {
+          for each (asteroid in asteroids)
+          {
+            if (Geometry.intersect(rocket, asteroid) != null) 
+            {
+              rocket.die();
+              addAsteroids(asteroid.split());
+              break;
+            }
+          }
+          
+          for each (projectile in bullets)
+          {
+            if (Geometry.intersect(rocket, projectile) != null)
+            {
+              rocket.die();
+              projectile.state = ObjectState.DESTROY;
+              break;
+            }
+          }
+          
+          for each (ufo in ufos)
+          {
+            if (Geometry.intersect(rocket, ufo) != null)
+            {
+              rocket.die();
+              ufo.die();
+              break;
+            }
+          }
+        }
+        
+        // Loss condition.
+        if (rocket.state == ObjectState.DESTROY)
+        {
+          rocket.state = ObjectState.INACTIVE;
+          levelLoseOut.play([foreground]);
+          return;
+        }
+          
+        // Victory condition.
+        if (rocket.state == ObjectState.ACTIVE && asteroids.length == 0)
+        {
+          rocket.state = ObjectState.INACTIVE;
+          currentLevel += 1;
+          levelWinOut.play([foreground]);
+          return;
+        }
+        
+        /////////////////////////////////////////
+        // CROSS-OBJECT ACTIONS
+        
+        // Rocket fire.
+        if (InputState.isKeyDown(Keyboard.SPACE))
+        {
+          if (rocket.fire())
+          {
+            var rocketFire:Vector2 = rocket.center;
+            rocketFire.acc(rocket.direction, rocket.radius * 1.2);
+            
+            projectile = new Bullet(rocketFire, rocket.direction);
+            bullets.push(projectile);
+            foreground.addChild(projectile.graphics);
+          }
+        }
+        
+        // Ufo fire.
+        for each (ufo in ufos) 
+        {
+          if (ufo.fire())
+          {
+            var laserDirection:Vector2 = Vector2.randomUnitCircle();
+            
+            var ufoFire:Vector2 = ufo.center;
+            ufoFire.acc(laserDirection, ufo.radius * 2);
+            
+            projectile = new Laser(ufoFire, laserDirection);
+            bullets.push(projectile);
+            foreground.addChild(projectile.graphics);
+          }
+        }
+        
+        /////////////////////////////////////////
+        // COLLISION PROCESSING
+        
+        // We have 4 kinds of collidable objects: 
+        // 1. the rocket, 2. bullets, 3. asteroids, and 4. ufos.
+        // All rocket-? collisions are already handled above, so we are left 
+        // with 3-choose-2 combinations between bullets, asteroids and ufos.
+        
+        // Bullet-? collisions.
+        for each (projectile in bullets)
+        {
+          for each (asteroid in asteroids)
+          {
+            if (Geometry.intersect(asteroid, projectile) != null)       
+            {  
+              projectile.state = ObjectState.DESTROY;
+              addAsteroids(asteroid.split());
+              
+              if (projectile is Bullet)
+                moneyThisLevel += asteroid.reward;
+                
+              break;
+            }
+          }
+          
+          for each (ufo in ufos)
+          {
+            if (Geometry.intersect(ufo, projectile) != null)
+            {
+              ufo.die();
+              projectile.state = ObjectState.DESTROY;
+              
+              if (projectile is Bullet)
+                moneyThisLevel += ufo.reward;
+                
+              break;
+            }  
+          }
+        }
+        
+        // Ufo-asteroid collisions.
+        for each (ufo in ufos)
+        {          
+          for each (asteroid in asteroids)
+          {
+            if (Geometry.intersect(ufo, asteroid) != null)
+            {
+              ufo.die();
+              addAsteroids(asteroid.split());
+              break;
+            }
+          }
+        }
+
+        /////////////////////////////////////////
+        // UFO GENERATION
+        
+        if (Math.random() < ((currentLevel + 2) / 2) * UFO_SPAWN_CHANCE) {
+          ufo = new Ufo(randomOffscreenLocation(), rocket.center);
+          ufos.push(ufo);
+          foreground.addChild(ufo.graphics);
+        }
+        
+        /////////////////////////////////////////
+        // GLOBAL ACTIONS
+                  
+        var objects:Vector.<GameObject> = new Vector.<GameObject>();
+        objects.push(rocket);
+        objects = objects.concat(bullets).concat(asteroids).concat(ufos);
+        
+        // Wrap objects that move out of bounds to the other side.
+        for each (go in objects)
+        {
+          var center:Vector2 = (go as IBoundingSphere).center;
+          
+          if (center.x < 0) 
+            go.graphics.x += foreground.width;
+          
+          if (center.x > foreground.width)
+            go.graphics.x -= foreground.width;
+          
+          if (center.y < 0) 
+            go.graphics.y += foreground.height;
+          
+          if (center.y > foreground.height)
+            go.graphics.y -= foreground.height;
+        }
+        
+        for each (go in objects) 
+          go.step(DT);
+          
+        InputState.update();
+      }
+      
+      /** Adds an array of asteroids into play. */
+      private function addAsteroids(A:Vector.<Asteroid>):void 
+      {
+        if (A == null)
+          return;
+        
+        for each (var asteroid:Asteroid in A)
+        {
+          asteroids.push(asteroid);
+          foreground.addChild(asteroid.graphics);
+        }
+      }
+      
+      /** Toggles the upgrade screen. */
+      private function toggleUpgradeScreen(isShow:Boolean):void
+      {
+        if (isShow)
+        {
+          currentMoney += moneyThisLevel;
+          moneyThisLevel = 0;
+          
+          updateUpgradePrices();
+          
+          upgradeIn.play([upgradeWindow]);        
+        }
+        else
+        {
+          upgradeOut.play([upgradeWindow]);
+        }
+      }
+      
+      /** Updates upgrade prices on upgrade window. */
+      private function updateUpgradePrices():void 
+      {
+        var accelerationPrice:int = rocket.acceleration.costOfNextUpgrade();
+        var reloadPrice:int       = rocket.reload.costOfNextUpgrade();
+        var hyperspacePrice:int   = rocket.hyperspace.costOfNextUpgrade();
+        
+        lblAccelerationPrice.text = "$" + accelerationPrice;
+        lblReloadPrice.text       = "$" + reloadPrice;
+        lblHyperspacePrice.text   = "$" + hyperspacePrice;
+        
+        if (accelerationPrice > currentMoney)
+          lblAccelerationPrice.setStyle("color", "red");
+        else
+          lblAccelerationPrice.setStyle("color", "white");
+
+        if (reloadPrice > currentMoney)
+          lblReloadPrice.setStyle("color", "red");
+        else
+          lblReloadPrice.setStyle("color", "white");
+          
+        if (hyperspacePrice > currentMoney)
+          lblHyperspacePrice.setStyle("color", "red");
+        else
+          lblHyperspacePrice.setStyle("color", "white");
+      }
+      
+      /** Attempts to upgrade a rocket component (depends on current available money). */
+      private function upgradeRocket(upgradable:NumericUpgradable):void
+      {
+        var change:Number = upgradable.upgrade(currentMoney);
+        
+        if (change >= 0)
+        {
+          currentMoney = change;
+          updateUpgradePrices();
+        }
+      }
+      
+      /////////////////////////////////////////////////////////////////////////
+      // STATIC FUNCTIONS
+      /////////////////////////////////////////////////////////////////////////
+      
+      /** Gets a random visible location on the foreground. */
+      public static function randomScreenLocation():Vector2 
+      {
+        return new Vector2(Math.random() * WIDTH + OFFSCREEN_PADDING, Math.random() * HEIGHT + OFFSCREEN_PADDING);
+      }
+      
+      /** Gets a pseudo-random offscreen location on the foreground. */
+      public static function randomOffscreenLocation():Vector2
+      {
+        var seed:Number = Math.random();
+        
+        var w:Number = WIDTH + 2 * OFFSCREEN_PADDING;
+        var h:Number = HEIGHT + 2 * OFFSCREEN_PADDING;
+        
+        if (seed < 0.25)
+          return new Vector2(Math.random() * w, 0);
+        else if (seed < 0.5)
+          return new Vector2(Math.random() * w, h);
+        else if (seed < 0.75)
+          return new Vector2(0, Math.random() * h);
+        else 
+          return new Vector2(w, Math.random() * h);
+      }
+      
+    ]]>
+  </mx:Script>
+    
+  <!--- Background image. -->
+  <mx:Image id="background"
+    width="100%" height="100%"
+    source="@Embed(source='assets/starry_field.jpg')"
+    />
+    
+  <!--- Displays current level. -->
+  <mx:Label 
+    id="lblLevel"
+    x="10" y="10"
+    fontSize="18" fontWeight="bold"
+    text="{currentLevel}" />
+  
+  <!--- Displays current player bankroll. -->
+  <mx:Label 
+    id="lblMoney"
+    y="10" width="100%"
+    textAlign="center"
+    fontSize="18" fontWeight="bold"
+    text="{'$' + (currentMoney + moneyThisLevel)}" />
+  
+  <!--- Holds all interactive game objects. -->
+  <mx:Canvas id="foreground" 
+    width="{WIDTH + OFFSCREEN_PADDING * 2}" height="{HEIGHT + OFFSCREEN_PADDING * 2}"
+    x="{-OFFSCREEN_PADDING}" y="{-OFFSCREEN_PADDING}"
+    horizontalScrollPolicy="off" verticalScrollPolicy="off"
+    />
+    
+  <!--- Where the player upgrades the rocket between levels. -->
+  <mx:Panel id="upgradeWindow" 
+    x="70" y="100"
+    width="520" height="260"
+    layout="vertical" horizontalAlign="center"
+    visible="false" alpha="0">
+    <mx:HBox
+      y="50"
+      paddingBottom="15"
+      horizontalAlign="center" horizontalGap="0">
+      <mx:VBox width="160" styleName="column">
+        <mx:Label styleName="header" text="Rocket Engine" />
+        <mx:Text text="Improves rocket handling by 20%." width="100%" textAlign="center" />
+        <mx:Label id="lblAccelerationPrice" truncateToFit="false" styleName="price" />
+        <mx:Image source="assets/ui/upgrade.swf" click="upgradeRocket(rocket.acceleration);" />
+      </mx:VBox>
+      
+      <mx:VBox width="160" styleName="column">
+        <mx:Label styleName="header" text="Cannon" />
+        <mx:Text text="Improves cannon firing rate by 7%." width="100%" textAlign="center" />
+        <mx:Label id="lblReloadPrice" truncateToFit="false" styleName="price" />
+        <mx:Image source="assets/ui/upgrade.swf" click="upgradeRocket(rocket.reload);" />
+      </mx:VBox>
+      
+      <mx:VBox width="160" styleName="column">
+        <mx:Label styleName="header" text="Hyperspace Drive" />
+        <mx:Text text="Reduces hyperspace jump risk by 15%." width="100%" textAlign="center" />
+        <mx:Label id="lblHyperspacePrice" truncateToFit="false" styleName="price" />
+        <mx:Image source="assets/ui/upgrade.swf" click="upgradeRocket(rocket.hyperspace);" />
+      </mx:VBox>
+    </mx:HBox>
+    <mx:Image 
+      source="assets/ui/check.swf"
+      width="40" height="40"
+      click="toggleUpgradeScreen(false);" />
+  </mx:Panel>
+  
+  <!--
+  /////////////////////////////////////////////////////////////////////////////
+  // DECLARATIONS
+  /////////////////////////////////////////////////////////////////////////////
+  -->
+  
+  <!--- Transition played upon player winning. -->
+  <mx:Fade id="levelWinOut" 
+    alphaFrom="1.0" alphaTo="0.0" duration="1000" 
+    effectEnd="toggleUpgradeScreen(true);" />
+  
+  <!--- Transition played upon player losing. -->
+  <mx:Fade id="levelLoseOut" 
+    alphaFrom="1.0" alphaTo="0.0" duration="1000" 
+    effectEnd="play(currentLevel);" />
+  
+  <!--- Transition played on starting a new level. -->
+  <mx:Fade id="levelIn" alphaFrom="0.0" alphaTo="1.0" duration="1000" />
+  
+  <!--- Transitions in the upgrade window. -->
+  <mx:Parallel id="upgradeIn" effectStart="upgradeWindow.visible = true;">
+    <mx:Zoom 
+      zoomWidthFrom="0.01" zoomHeightFrom="0.01" zoomWidthTo="1" zoomHeightTo="1"
+      easingFunction="{Exponential.easeOut}" />
+    <mx:Fade alphaFrom="0" alphaTo="1" easingFunction="{Exponential.easeOut}" />
+  </mx:Parallel>
+  
+  <!--- Transitions out the upgrade window. -->
+  <mx:Zoom id="upgradeOut"
+    zoomWidthFrom="1" zoomHeightFrom="1" zoomWidthTo="0.01" zoomHeightTo="0.01"
+    easingFunction="{Exponential.easeOut}" 
+    effectEnd="upgradeWindow.visible = false; play(currentLevel);" />
+    
+  <!--
+  /////////////////////////////////////////////////////////////////////////////
+  // STATES
+  /////////////////////////////////////////////////////////////////////////////
+  -->
+  
+  <mx:states>
+    <!--- Main menu state. -->
+    <mx:State name="menu">
+      <mx:AddChild>
+        <mx:Canvas width="100%" height="100%">
+          <mx:Image 
+            source="@Embed(source='assets/title.swf')"
+            width="100%" height="100%" 
+            click="play(0);" />
+        </mx:Canvas>
+      </mx:AddChild>
+      
+      <mx:RemoveChild target="{foreground}" />
+      <mx:RemoveChild target="{background}" />
+      
+      <mx:RemoveChild target="{lblLevel}" />
+      <mx:RemoveChild target="{lblMoney}" />
+      <mx:RemoveChild target="{upgradeWindow}" />
+    </mx:State>
+  </mx:states>
+    
+</mx:Application>
