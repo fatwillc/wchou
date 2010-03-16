@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application 
+  xmlns:mx="http://www.adobe.com/2006/mxml" 
+  layout="vertical"
+  width="350" height="450"
+  horizontalAlign="center" verticalAlign="middle"
+  backgroundColor="white" 
+  viewSourceURL="arrayTest/index.html">
+  
+  <mx:Style>
+    ColumnChart {
+      chartSeriesStyles: Series1, Series2;
+    }
+    
+    .Series1 {
+      fill: #9999CC;
+    }
+    
+    .Series2 {
+      fill: #666699;
+    }
+  </mx:Style>
+  
+  <mx:Script>
+    <![CDATA[
+      import mx.collections.ArrayCollection;
+      import LinkedList.LinkedListIterator;
+      import LinkedList.LinkedList;
+      import __AS3__.vec.Vector;
+      
+      [Bindable]
+      private static var scores:ArrayCollection = new ArrayCollection();
+      
+      private function test():void
+      {
+        var iterations:int = 100000;
+        var i:int;
+        var start:Number, end:Number;
+        var I:LinkedListIterator;
+        
+        // Data structures to test.
+        var vector:Vector.<Object> = new Vector.<Object>();
+        var list:LinkedList = new LinkedList();
+        
+        // Store results in these.
+        var array:Array = new Array();     
+        var v:Number, l:Number;
+        
+        ///////////////////////////////////////////////////////////////////////
+        // VECTOR: PUSH
+        ///////////////////////////////////////////////////////////////////////
+
+        start = new Date().time;   
+        for (i = 0; i < iterations; i++)
+        {
+          vector.push(new Object());
+        }
+        end = new Date().time;
+        
+        v = (end - start);
+        
+        ///////////////////////////////////////////////////////////////////////
+        // LINKED LIST: PUSH
+        ///////////////////////////////////////////////////////////////////////
+        
+        start = new Date().time;
+        for (i = 0; i < iterations; i++)
+        {
+          list.addFirst(new Object());
+        }
+        end = new Date().time;
+        
+        l = (end - start);
+        
+        array.push( {Operation:"Push", Vector:v, LinkedList:l} );
+        
+        ///////////////////////////////////////////////////////////////////////
+        // VECTOR: GET
+        ///////////////////////////////////////////////////////////////////////
+        
+        start = new Date().time;   
+        for (i = 0; i < iterations; i++)
+        {
+          var x:Object = vector[i];
+        }
+        end = new Date().time;
+        
+        v = (end - start);
+        
+        ///////////////////////////////////////////////////////////////////////
+        // LINKED LIST: GET
+        ///////////////////////////////////////////////////////////////////////
+        
+        start = new Date().time;
+        I = new LinkedListIterator(list);
+        while (I.hasNext())
+        {
+          var y:Object = I.next();
+        }
+        end = new Date().time;
+        
+        l = (end - start);
+        
+        array.push( {Operation:"Get", Vector:v, LinkedList:l} );
+        
+        ///////////////////////////////////////////////////////////////////////
+        // VECTOR: DELETE
+        ///////////////////////////////////////////////////////////////////////
+        
+        start = new Date().time;   
+        for (i = 0; i < iterations; i+=2)
+        {
+          vector[i] = null;
+        }
+        vector = vector.filter(nullFilter);
+        end = new Date().time;
+        
+        v = (end - start);
+        
+        ///////////////////////////////////////////////////////////////////////
+        // LINKED LIST: DELETE
+        ///////////////////////////////////////////////////////////////////////
+        
+        start = new Date().time;
+        I = new LinkedListIterator(list);
+        while (I.hasNext())
+        {
+          list.remove(I.next());
+          I.next();
+        }
+        end = new Date().time;
+        
+        l = (end - start);
+        
+        array.push( {Operation:"Delete", Vector:v, LinkedList:l} );
+        
+        scores.source = array;
+      }
+      
+      private function nullFilter(o:Object, i:int, v:Vector.<Object>):Boolean 
+      {
+        return o != null;
+      }
+    ]]>
+  </mx:Script>
+
+
+  <mx:ColumnChart id="chart" 
+    width="300" height="300"
+    dataProvider="{scores}" showDataTips="true">
+    
+    <mx:verticalAxis>
+      <mx:LinearAxis title="Runtime(ms)" />
+    </mx:verticalAxis>
+    <mx:horizontalAxis>
+      <mx:CategoryAxis 
+        dataProvider="{scores}" 
+        categoryField="Operation"
+        title="Operation" />
+    </mx:horizontalAxis>
+    
+    <mx:series>
+      <mx:ColumnSeries height="100%" 
+        xField="Operation" 
+        yField="Vector" 
+        displayName="AS3.Vector" />
+      <mx:ColumnSeries height="100%" 
+        xField="Operation" 
+        yField="LinkedList" 
+        displayName="LinkedList" />
+    </mx:series>
+  </mx:ColumnChart>
+  <mx:Legend dataProvider="{chart}" />
+  
+  <mx:Button label="Run Test" click="test();" 
+    paddingTop="10" paddingBottom="10" paddingLeft="20" paddingRight="20" />
+
+</mx:Application>

@@ -1,0 +1,62 @@
+Panel {
+  cornerRadius: 0;
+  
+  backgroundColor: black;
+  backgroundAlpha: 0.2;
+  
+  borderColor: black;
+  borderAlpha: 0.2;
+  
+  color: white;
+  
+  titleStyleName: "title";
+}
+
+Button {
+  cornerRadius: 0;
+  
+  themeColor: #8b6e6e;
+  
+  borderColor: white;
+  
+  fillColors: #ccaaaa, #ccaaaa;
+  fillAlphas: 1.0, 1.0;
+  highlightAlphas: 0.0, 0.0;
+  focusAlpha: 0.0;
+  
+  letterSpacing: 1;
+  fontSize: 9;
+  fontWeight: normal;
+  fontAntiAliasType: normal;
+  fontSharpness: 400;
+}
+
+ScrollBar {
+  highlightAlphas: 0.0, 0.0;
+  trackColors: #997777, #997777;
+}
+
+Label {
+  fontSize: 14;
+  fontFamily: Tahoma;
+  letterSpacing: 3;
+  color: white;
+}
+
+.header {
+  fontSize: 16;
+  fontWeight: bold;
+  fontFamily: arial;
+  letterSpacing: 1;
+}
+
+.column {
+  horizontalAlign: center;
+}
+
+.price {
+  fontSize: 16;
+  fontFamily: Georgia;
+  color: white;
+  letterSpacing: 1;
+}
