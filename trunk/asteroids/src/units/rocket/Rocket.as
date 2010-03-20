@@ -20,7 +20,7 @@ package units.rocket
     ///////////////////////////////////////////////////////////////////////////
     
     /** Maximum attainable rocket speed. */
-    private const MAX_SPEED:Number = 150;
+    private const MAX_SPEED:Number = 200;
     
     /** Amount of time between hyperspace warp-out and warp-in. */
     private const HYPERSPACE_TIMER:Number = 0.75;
@@ -59,8 +59,8 @@ package units.rocket
     {
       this.listenerComponent = listenerComponent;
       
-      _graphics = new ArrowRocket();
-
+      _graphics = new RocketGraphic();//ArrowRocket();
+      
       reset();
     }
     
@@ -71,7 +71,7 @@ package units.rocket
       
       v.zero();
       
-//      (graphics as RocketGraphic).gotoAndStop(1);
+      (graphics as RocketGraphic).gotoAndStop(1);
       
       if (position != null)
       {
@@ -82,7 +82,7 @@ package units.rocket
     
     override public function update(dt:Number):void 
     {      
-      var rg:ArrowRocket = graphics as ArrowRocket;//RocketGraphic;
+      var rg:RocketGraphic = graphics as RocketGraphic;
       
       rotateToMouse();
       
@@ -102,7 +102,7 @@ package units.rocket
         // Hyperspace jump.        
         if (InputState.isKeyDown(Keyboard.SHIFT) && !InputState.wasKeyDown(Keyboard.SHIFT))
         {
-//          rg.playWarpOutAnimation();
+          rg.playWarpOutAnimation();
           isHyperspaceActivated = true;
           state = ObjectState.INACTIVE;    
                
@@ -114,7 +114,7 @@ package units.rocket
       {
         if (hyperspaceCountdown <= 0) 
         {
-//          rg.playWarpInAnimation();
+          rg.playWarpInAnimation();
           isHyperspaceActivated = false;
           state = ObjectState.ACTIVE;
           
@@ -146,7 +146,7 @@ package units.rocket
         SoundManager.playRandomBullet();
         
         remainingReload = reload.value();
-//        (graphics as RocketGraphic).playFireAnimation();    
+        (graphics as RocketGraphic).playFireAnimation();    
         return true;
       }
       return false;
@@ -157,7 +157,7 @@ package units.rocket
     {
       state = ObjectState.DESTROY;
       
-//      (graphics as RocketGraphic).playDeathAnimation();
+      (graphics as RocketGraphic).playDeathAnimation();
     }
 
     /** Rotates rocket to face the current mouse position. */
