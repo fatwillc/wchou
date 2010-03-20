@@ -53,8 +53,6 @@ package core
      */
     final public function step(dt:Number):void 
     {
-      F.zero();
-      
       update(dt);
       
       // Apply forces.      
@@ -77,6 +75,9 @@ package core
           g.drawCircle(center.x, center.y, radius);
         }
       }
+      
+      // Clear forces.
+      F.zero();
     }
     
     /** 

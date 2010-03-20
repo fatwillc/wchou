@@ -6,7 +6,7 @@ package units.rocket.upgradables
     {
       super();
       
-      baseValue = 6;
+      baseValue = 4;
       upgradeRate = 0.2;
       
       isRateIncrease = true;

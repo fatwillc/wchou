@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <mx:Application 
-  xmlns:mx="http://www.adobe.com/2006/mxml" 
+  xmlns:mx="http://www.adobe.com/2006/mxml"
+  xmlns:ui="ui.*"
   layout="absolute"
   width="640"
   height="480"
   backgroundColor="0x333333"
   backgroundGradientAlphas="{[0.0, 0.0]}"
   horizontalScrollPolicy="off"  verticalScrollPolicy="off"
-  frameRate="24"
+  frameRate="30"
   applicationComplete="init();" 
   viewSourceURL="srcview/index.html">
 
@@ -15,6 +16,8 @@
 
   <mx:Script>
     <![CDATA[
+      import ui.TilingComponent;
+      import mx.effects.easing.Back;
       import core.*;
       import units.rocket.Rocket;
       import units.rocket.upgradables.NumericUpgradable;
@@ -25,7 +28,7 @@
       import __AS3__.vec.Vector;
       import mx.effects.easing.Exponential;
       
-      public static var DEBUG:Boolean = false;
+      public static var DEBUG:Boolean = true;
       
       /////////////////////////////////////////////////////////////////////////
       // CONSTANTS
@@ -36,6 +39,13 @@
       
       /** Game height. */
       public static const HEIGHT:int = 480;
+      
+      /** 
+       * The proportion of panning speeds between neighboring layers,
+       * e.g. midground travels PAN_FACTOR times as fast as the foreground,
+       * and background travels PAN_FACTOR times as fast as the midground.
+       */ 
+      private const PAN_FACTOR:Number = 0.7;
       
       /** Amount of simulation steps per second (amount of game loop iterations per second). */
       private const TICKS_PER_SECOND:int = 30;
@@ -88,8 +98,8 @@
         loopTimer = new Timer(1000 / TICKS_PER_SECOND);
         loopTimer.addEventListener(TimerEvent.TIMER, theLoop);
         
-        rocket = new Rocket();
-                
+        rocket = new Rocket();        
+        
         currentState = "menu";
       }
       
@@ -111,6 +121,7 @@
         moneyThisLevel = 0; 
         
         foreground.removeAllChildren();
+        background.reset();
         
         bullets = new Vector.<GameObject>();
         asteroids = new Vector.<GameObject>();
@@ -176,6 +187,10 @@
         bullets = bullets.filter(activeFilter);
         asteroids = asteroids.filter(activeFilter);
         ufos = ufos.filter(activeFilter);
+                  
+        var objects:Vector.<GameObject> = new Vector.<GameObject>();
+        objects.push(rocket);
+        objects = objects.concat(bullets).concat(asteroids).concat(ufos);
         
         /////////////////////////////////////////
         // CHECK FOR VICTORY & LOSS CONDITION
@@ -183,32 +198,23 @@
         // Check for collision between the rocket and all other collidables.
         if (rocket.state == ObjectState.ACTIVE) 
         {
-          for each (asteroid in asteroids)
+          for each (go in objects)
           {
-            if (Geometry.intersect(rocket, asteroid) != null) 
+            // Don't test collision with self.
+            if (go is Rocket)
+              continue;
+            
+            if (Geometry.intersect(rocket, go) != null) 
             {
               rocket.die();
-              addAsteroids(asteroid.split());
-              break;
-            }
-          }
-          
-          for each (projectile in bullets)
-          {
-            if (Geometry.intersect(rocket, projectile) != null)
-            {
-              rocket.die();
-              projectile.state = ObjectState.DESTROY;
-              break;
-            }
-          }
-          
-          for each (ufo in ufos)
-          {
-            if (Geometry.intersect(rocket, ufo) != null)
-            {
-              rocket.die();
-              ufo.die();
+              
+              if (go is Asteroid)
+                addAsteroids((go as Asteroid).split());
+              else if (go is Projectile)
+                (go as Projectile).state = ObjectState.DESTROY;
+              else if (go is Ufo)
+                (go as Ufo).die();
+                
               break;
             }
           }
@@ -240,7 +246,7 @@
           if (rocket.fire())
           {
             var rocketFire:Vector2 = rocket.center;
-            rocketFire.acc(rocket.direction, rocket.radius * 1.2);
+            rocketFire.acc(rocket.direction, rocket.radius * 2);
             
             projectile = new Bullet(rocketFire, rocket.direction);
             bullets.push(projectile);
@@ -328,11 +334,7 @@
         }
         
         /////////////////////////////////////////
-        // GLOBAL ACTIONS
-                  
-        var objects:Vector.<GameObject> = new Vector.<GameObject>();
-        objects.push(rocket);
-        objects = objects.concat(bullets).concat(asteroids).concat(ufos);
+        // BOUNDARY CHECK & TIMESTEP
         
         // Wrap objects that move out of bounds to the other side.
         for each (go in objects)
@@ -355,6 +357,30 @@
         for each (go in objects) 
           go.step(DT);
           
+        /////////////////////////////////////////
+        // CAMERA TRANSFORM
+          
+        // Shift everything relative to rocket position and put the rocket in the center.
+        var toCenter:Vector2 = new Vector2(foreground.width / 2, foreground.height / 2).subtract(rocket.center);
+        
+        for each (go in objects)
+        {
+          go.graphics.x += toCenter.x;
+          go.graphics.y += toCenter.y;
+        }
+        
+        toCenter.scale(PAN_FACTOR);
+        midground.update(toCenter);
+        
+        toCenter.scale(PAN_FACTOR);
+        background.update(toCenter);
+        
+        toCenter.scale(PAN_FACTOR);
+        farground.update(toCenter);
+          
+        /////////////////////////////////////////
+        // INPUT UPDATE
+
         InputState.update();
       }
       
@@ -459,11 +485,13 @@
     ]]>
   </mx:Script>
     
-  <!--- Background image. -->
-  <mx:Image id="background"
-    width="100%" height="100%"
-    source="@Embed(source='assets/starry_field.jpg')"
-    />
+  <ui:TilingComponent id="farground" tileImage="{fargroundImage}" width="100%" height="100%" />
+  <ui:TilingComponent id="background" tileImage="{backgroundImage}" width="100%" height="100%" />
+  <ui:TilingComponent id="midground" tileImage="{midgroundImage}" width="100%" height="100%" />
+  
+  <mx:Image id="fargroundImage" source="@Embed(source='assets/far.png')" visible="false" />  
+  <mx:Image id="backgroundImage" source="@Embed(source='assets/back.png')" visible="false" />
+  <mx:Image id="midgroundImage" source="@Embed(source='assets/mid.png')" visible="false" />
     
   <!--- Displays current level. -->
   <mx:Label 
@@ -576,7 +604,10 @@
       </mx:AddChild>
       
       <mx:RemoveChild target="{foreground}" />
+      
+      <mx:RemoveChild target="{midground}" />
       <mx:RemoveChild target="{background}" />
+      <mx:RemoveChild target="{farground}" />
       
       <mx:RemoveChild target="{lblLevel}" />
       <mx:RemoveChild target="{lblMoney}" />
