@@ -2,23 +2,26 @@ package particle
 {
   import core.GameObject;
   
-  import flash.geom.ColorTransform;
-  import flash.geom.Transform;
-  
   import mx.controls.Image;
   
   import utils.Vector2;
 
   /**
    * A particle emitted from the particle system.
-   * Should not be instanced directly.
    */
-  public class Particle extends GameObject
+  internal class Particle extends GameObject
   {
     public static const ORB:String = "orb";
     
+    public static const ROCK:String = "rock";
+    
     [Embed(source='assets/particle/orb.swf')]
     private static var _orb:Class;
+    
+    [Embed(source='assets/units/asteroids/small-1.swf')]
+    private static var _rock1:Class;
+    [Embed(source='assets/units/asteroids/small-2.swf')]
+    private static var _rock2:Class;
     
     public function Particle(type:String, lifespan:Number, position:Vector2, velocity:Vector2)
     {
@@ -31,6 +34,17 @@ package particle
         case ORB:
           var img:Image = new Image();
           img.source = _orb;
+          _graphics = img;
+          break;
+        case ROCK:
+          var img:Image = new Image();
+          
+          switch ((Math.random() * 2) as int)  
+          {
+            case 0: img.source = _rock1; break;
+            case 1: img.source = _rock2; break;
+          }
+          
           _graphics = img;
           break;
         default:
