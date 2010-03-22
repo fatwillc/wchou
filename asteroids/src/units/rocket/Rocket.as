@@ -7,6 +7,8 @@ package units.rocket
   
   import mx.core.UIComponent;
   
+  import particle.ParticleSystem;
+  
   import units.rocket.upgradables.*;
   
   import utils.Geometry;
@@ -20,7 +22,7 @@ package units.rocket
     ///////////////////////////////////////////////////////////////////////////
     
     /** Maximum attainable rocket speed. */
-    private const MAX_SPEED:Number = 200;
+    private const MAX_SPEED:Number = 150;
     
     /** Amount of time between hyperspace warp-out and warp-in. */
     private const HYPERSPACE_TIMER:Number = 0.75;
@@ -59,7 +61,7 @@ package units.rocket
     {
       this.listenerComponent = listenerComponent;
       
-      _graphics = new RocketGraphic();//ArrowRocket();
+      _graphics = new BubbleRocket();
       
       reset();
     }
@@ -71,7 +73,7 @@ package units.rocket
       
       v.zero();
       
-      (graphics as RocketGraphic).gotoAndStop(1);
+      (graphics as IRocket).reset();
       
       if (position != null)
       {
@@ -80,9 +82,11 @@ package units.rocket
       }
     }
     
-    override public function update(dt:Number):void 
+    override public function update(dt:Number, cameraTransform:Vector2):void 
     {      
-      var rg:RocketGraphic = graphics as RocketGraphic;
+      super.update(dt, cameraTransform);
+      
+      var rocket:IRocket = graphics as IRocket;
       
       rotateToMouse();
       
@@ -94,15 +98,20 @@ package units.rocket
         if (InputState.isMouseDown) 
         {          
           F.acc(direction, acceleration.value());
-          rg.togglePropulsion(true);
+          
+          var emitPosition:Vector2 = center;
+          emitPosition.acc(direction, -10);
+          ParticleSystem.modifyEmitter("rocket_propulsion", true, emitPosition);
         } 
         else 
-          rg.togglePropulsion(false);
+        {
+          ParticleSystem.modifyEmitter("rocket_propulsion", false);
+        }
           
         // Hyperspace jump.        
         if (InputState.isKeyDown(Keyboard.SHIFT) && !InputState.wasKeyDown(Keyboard.SHIFT))
         {
-          rg.playWarpOutAnimation();
+          rocket.playWarpOutAnimation();
           isHyperspaceActivated = true;
           state = ObjectState.INACTIVE;    
                
@@ -114,13 +123,13 @@ package units.rocket
       {
         if (hyperspaceCountdown <= 0) 
         {
-          rg.playWarpInAnimation();
+          rocket.playWarpInAnimation();
           isHyperspaceActivated = false;
           state = ObjectState.ACTIVE;
           
           var random:Vector2 = Asteroids.randomScreenLocation();
-          rg.x = random.x;
-          rg.y = random.y;
+          graphics.x = random.x;
+          graphics.y = random.y;
           
           // Hyperspace risk.
           if (Math.random() < hyperspace.value())
@@ -146,18 +155,18 @@ package units.rocket
         SoundManager.playRandomBullet();
         
         remainingReload = reload.value();
-        (graphics as RocketGraphic).playFireAnimation();    
+        (graphics as IRocket).playFireAnimation();    
         return true;
       }
       return false;
     }
     
     /** Destroys the rocket. */
-    public function die():void 
+    override public function die():void 
     {
       state = ObjectState.DESTROY;
       
-      (graphics as RocketGraphic).playDeathAnimation();
+      (graphics as IRocket).playDeathAnimation();
     }
 
     /** Rotates rocket to face the current mouse position. */

@@ -2,20 +2,14 @@
 	import mx.flash.UIMovieClip;
 	import flash.display.MovieClip;
 
-	public dynamic class RocketGraphic extends UIMovieClip {
+	public dynamic class BubbleRocket extends UIMovieClip implements IRocket {
 		
-		public function RocketGraphic() {
+		public function BubbleRocket() {
 			super();
 		}
 		
-		public function togglePropulsion(isOn:Boolean):void {
-			if (!propulsion)
-				return;
-			
-			if (isOn)
-				propulsion.alpha = 1.0;
-			else
-				propulsion.alpha = 0;
+		public function reset():void {
+			gotoAndStop(1);
 		}
 		
 		public function playFireAnimation():void {

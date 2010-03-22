@@ -11,11 +11,9 @@ package core
   import utils.Geometry;
   import utils.Vector2;
 
-  /** A game object with pseudo-Newtonian properties. */
+  /** An abstract game object with pseudo-Newtonian properties. */
   public class GameObject implements IBoundingSphere
   {
-    public static const K:Number = 1.0;
-    
     /** The current state of this game object. @see ObjectState for more details. */
     public var state:String = ObjectState.ACTIVE;
     
@@ -38,6 +36,26 @@ package core
     /** Angular velocity. */
     protected var w:Number = 0;
     
+    /** The current age of this object. */
+    protected var _age:Number = 0;
+    public function get age():Number { return _age; }
+    
+    /** The lifespan of this object. A value of 0 represents an infinite lifespan. */
+    protected var _lifespan:Number = 0;
+    public function get lifespan():Number { return _lifespan; }
+    
+    /** 
+     * An reusable array filter that removes graphics of destroyed objects 
+     * from both the "this" container and the array.
+     */
+    public static const destroyFilter:Function = function (o:GameObject, i:int, v:Vector.<GameObject>):Boolean 
+    {
+      if (o.state == ObjectState.DESTROY)
+        this.removeChild(o.graphics);
+      
+      return o.state != ObjectState.DESTROY;
+    };
+    
     public function GameObject(mass:Number = 1.0) 
     {
       super();
@@ -51,9 +69,9 @@ package core
      * @param dt - Width of time step.
      * @param input - Current input state.
      */
-    final public function step(dt:Number):void 
+    final public function step(dt:Number, cameraTransform:Vector2):void 
     {
-      update(dt);
+      update(dt, cameraTransform);
       
       // Apply forces.      
       v.acc(F, 1.0/m);
@@ -78,14 +96,29 @@ package core
       
       // Clear forces.
       F.zero();
+      
+      // Kill object if it exceeded its lifespan.
+      _age += dt;
+      if (_lifespan > 0 && _age > _lifespan)
+        state = ObjectState.DESTROY;
     }
     
     /** 
      * Custom update and force accumulation actions for subclasses go here.
      */
-    public function update(dt:Number):void 
+    public function update(dt:Number, cameraTransform:Vector2):void 
     {
-      // To be implemented by subclasses.
+      // Apply camera transformation.
+      if (cameraTransform != null)
+      {
+        graphics.x += cameraTransform.x;
+        graphics.y += cameraTransform.y;
+      }
+    }
+    
+    public function die():void
+    {
+      state = ObjectState.DESTROY;
     }
     
     public function get direction():Vector2

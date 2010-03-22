@@ -1,10 +1,11 @@
 ﻿package {
 	import mx.flash.UIMovieClip;
+	import flash.events.Event;
 	import flash.display.MovieClip;
 
 	public dynamic class UfoGraphic extends UIMovieClip {
 		
-		public var isDead:Boolean = false;
+		public static const DEATH:String = "death";
 		
 		public function UfoGraphic() {
 			super();

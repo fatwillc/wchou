@@ -1,24 +1,20 @@
 package units.projectiles
 {
-  import utils.Vector2;
   import mx.controls.Image;
+  
+  import utils.Vector2;
 
   /** Bullets are shot from the rocket. */
   public class Bullet extends Projectile
   {
-    /** Speed of the bullet. */
-    private const SPEED:Number = 300;
-    
     [Embed(source='assets/units/bullet.swf')]
-    private var _source:Class;
+    private var bullet:Class;
     
-    public function Bullet(position:Vector2, direction:Vector2)
+    public function Bullet(position:Vector2, inertia:Vector2, direction:Vector2)
     {
-      super(position, direction);
+      super(position, inertia, direction, 350);
       
-      (graphics as Image).source = _source;
-      
-      v.normalize(SPEED);
+      (graphics as Image).source = bullet;
     }
     
   }

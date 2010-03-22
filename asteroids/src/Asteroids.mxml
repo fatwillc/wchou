@@ -16,19 +16,20 @@
 
   <mx:Script>
     <![CDATA[
-      import ui.TilingComponent;
-      import mx.effects.easing.Back;
       import core.*;
       import units.rocket.Rocket;
       import units.rocket.upgradables.NumericUpgradable;
       import units.Ufo;
       import units.asteroids.*;
       import units.projectiles.*;
+      import particle.ParticleSystem;
+      import ui.TilingComponent;
       import utils.*;
       import __AS3__.vec.Vector;
       import mx.effects.easing.Exponential;
+      import mx.effects.easing.Back;
       
-      public static var DEBUG:Boolean = true;
+      public static var DEBUG:Boolean = false;
       
       /////////////////////////////////////////////////////////////////////////
       // CONSTANTS
@@ -45,7 +46,7 @@
        * e.g. midground travels PAN_FACTOR times as fast as the foreground,
        * and background travels PAN_FACTOR times as fast as the midground.
        */ 
-      private const PAN_FACTOR:Number = 0.7;
+      private const PAN_FACTOR:Number = 0.9;
       
       /** Amount of simulation steps per second (amount of game loop iterations per second). */
       private const TICKS_PER_SECOND:int = 30;
@@ -91,9 +92,11 @@
       private function init():void         
       {
         SoundManager.initialize();
-//        SoundManager.playGameMusic(true);
+        SoundManager.playGameMusic(true);
         
         InputState.initialize(this);
+        
+        ParticleSystem.initialize(particleLayer);
         
         loopTimer = new Timer(1000 / TICKS_PER_SECOND);
         loopTimer.addEventListener(TimerEvent.TIMER, theLoop);
@@ -120,30 +123,32 @@
           
         moneyThisLevel = 0; 
         
-        foreground.removeAllChildren();
+        objectLayer.removeAllChildren();
+        foreground.reset();
+        midground.reset();
         background.reset();
         
         bullets = new Vector.<GameObject>();
         asteroids = new Vector.<GameObject>();
         ufos = new Vector.<GameObject>();
         
-        rocket.reset(new Vector2(foreground.width / 2, foreground.height / 2));
-        foreground.addChild(rocket.graphics);
+        rocket.reset(new Vector2(objectLayer.width / 2, objectLayer.height / 2));
+        objectLayer.addChild(rocket.graphics);
         
         var numAsteroids:int = level * 2 + 1;
         for (var i:int = 0; i < numAsteroids; i++)
         {          
           // Spawn asteroid in a random direction away from center of screen
           // between 150 and 300 units (makes sure not to instakill player).
-          var asteroidPosition:Vector2 = new Vector2(foreground.width / 2, foreground.height / 2);
+          var asteroidPosition:Vector2 = new Vector2(objectLayer.width / 2, objectLayer.height / 2);
           asteroidPosition.acc(Vector2.randomUnitCircle(), Math.random() * 150 + 150);
 
           var asteroid:Asteroid = new LargeAsteroid(asteroidPosition);
           asteroids.push(asteroid);
-          foreground.addChild(asteroid.graphics);
+          objectLayer.addChild(asteroid.graphics);
         }
         
-        levelIn.play([foreground]);
+        levelIn.play([objectLayer]);
         
         loopTimer.start();
       }
@@ -164,7 +169,7 @@
         var a:Asteroid, b:Asteroid;
         var ufo:Ufo;
         
-        foreground.graphics.clear();
+        objectLayer.graphics.clear();
         
         /////////////////////////////////////////
         // REMOVE DESTROYED OBJECTS
@@ -175,18 +180,9 @@
         // This seems to be a reasonable choice and without any averse gameplay
         // effects so far..
         
-        var activeFilter:Function = 
-          function(o:GameObject, i:int, v:Vector.<GameObject>):Boolean 
-          {
-            if (o.state == ObjectState.DESTROY)
-              foreground.removeChild(o.graphics);
-            
-            return o.state == ObjectState.ACTIVE;
-          };
-        
-        bullets = bullets.filter(activeFilter);
-        asteroids = asteroids.filter(activeFilter);
-        ufos = ufos.filter(activeFilter);
+        bullets = bullets.filter(GameObject.destroyFilter, objectLayer);
+        asteroids = asteroids.filter(GameObject.destroyFilter, objectLayer);
+        ufos = ufos.filter(GameObject.destroyFilter, objectLayer);
                   
         var objects:Vector.<GameObject> = new Vector.<GameObject>();
         objects.push(rocket);
@@ -210,10 +206,8 @@
               
               if (go is Asteroid)
                 addAsteroids((go as Asteroid).split());
-              else if (go is Projectile)
-                (go as Projectile).state = ObjectState.DESTROY;
-              else if (go is Ufo)
-                (go as Ufo).die();
+              else if (go is Projectile || go is Ufo)
+                go.die();
                 
               break;
             }
@@ -224,7 +218,7 @@
         if (rocket.state == ObjectState.DESTROY)
         {
           rocket.state = ObjectState.INACTIVE;
-          levelLoseOut.play([foreground]);
+          levelLoseOut.play([objectLayer]);
           return;
         }
           
@@ -233,7 +227,7 @@
         {
           rocket.state = ObjectState.INACTIVE;
           currentLevel += 1;
-          levelWinOut.play([foreground]);
+          levelWinOut.play([objectLayer]);
           return;
         }
         
@@ -245,12 +239,12 @@
         {
           if (rocket.fire())
           {
-            var rocketFire:Vector2 = rocket.center;
-            rocketFire.acc(rocket.direction, rocket.radius * 2);
+            var bulletPosition:Vector2 = rocket.center;
+            bulletPosition.acc(rocket.direction, rocket.radius * 2);
             
-            projectile = new Bullet(rocketFire, rocket.direction);
+            projectile = new Bullet(bulletPosition, rocket.velocity, rocket.direction);
             bullets.push(projectile);
-            foreground.addChild(projectile.graphics);
+            objectLayer.addChild(projectile.graphics);
           }
         }
         
@@ -261,12 +255,12 @@
           {
             var laserDirection:Vector2 = Vector2.randomUnitCircle();
             
-            var ufoFire:Vector2 = ufo.center;
-            ufoFire.acc(laserDirection, ufo.radius * 2);
+            var laserPosition:Vector2 = ufo.center;
+            laserPosition.acc(laserDirection, ufo.radius * 2);
             
-            projectile = new Laser(ufoFire, laserDirection);
+            projectile = new Laser(laserPosition, ufo.velocity, laserDirection);
             bullets.push(projectile);
-            foreground.addChild(projectile.graphics);
+            objectLayer.addChild(projectile.graphics);
           }
         }
         
@@ -330,7 +324,7 @@
         if (Math.random() < ((currentLevel + 2) / 2) * UFO_SPAWN_CHANCE) {
           ufo = new Ufo(randomOffscreenLocation(), rocket.center);
           ufos.push(ufo);
-          foreground.addChild(ufo.graphics);
+          objectLayer.addChild(ufo.graphics);
         }
         
         /////////////////////////////////////////
@@ -342,41 +336,38 @@
           var center:Vector2 = (go as IBoundingSphere).center;
           
           if (center.x < 0) 
-            go.graphics.x += foreground.width;
+            go.graphics.x += objectLayer.width;
           
-          if (center.x > foreground.width)
-            go.graphics.x -= foreground.width;
+          if (center.x > objectLayer.width)
+            go.graphics.x -= objectLayer.width;
           
           if (center.y < 0) 
-            go.graphics.y += foreground.height;
+            go.graphics.y += objectLayer.height;
           
-          if (center.y > foreground.height)
-            go.graphics.y -= foreground.height;
+          if (center.y > objectLayer.height)
+            go.graphics.y -= objectLayer.height;
         }
-        
-        for each (go in objects) 
-          go.step(DT);
           
         /////////////////////////////////////////
         // CAMERA TRANSFORM
           
         // Shift everything relative to rocket position and put the rocket in the center.
-        var toCenter:Vector2 = new Vector2(foreground.width / 2, foreground.height / 2).subtract(rocket.center);
+        var rocketToCenter:Vector2 = new Vector2(objectLayer.width / 2, objectLayer.height / 2).subtract(rocket.center);
         
-        for each (go in objects)
-        {
-          go.graphics.x += toCenter.x;
-          go.graphics.y += toCenter.y;
-        }
+        foreground.update(rocketToCenter, 1.0 / PAN_FACTOR);
+        midground.update(rocketToCenter, PAN_FACTOR);
+        background.update(rocketToCenter, PAN_FACTOR * PAN_FACTOR);
         
-        toCenter.scale(PAN_FACTOR);
-        midground.update(toCenter);
+        /////////////////////////////////////////
+        // UPDATE
         
-        toCenter.scale(PAN_FACTOR);
-        background.update(toCenter);
+        for each (go in objects) 
+          go.step(DT, rocketToCenter);
         
-        toCenter.scale(PAN_FACTOR);
-        farground.update(toCenter);
+        /////////////////////////////////////////
+        // PARTICLES
+        
+        ParticleSystem.update(DT, rocketToCenter);
           
         /////////////////////////////////////////
         // INPUT UPDATE
@@ -393,7 +384,7 @@
         for each (var asteroid:Asteroid in A)
         {
           asteroids.push(asteroid);
-          foreground.addChild(asteroid.graphics);
+          objectLayer.addChild(asteroid.graphics);
         }
       }
       
@@ -485,76 +476,92 @@
     ]]>
   </mx:Script>
     
-  <ui:TilingComponent id="farground" tileImage="{fargroundImage}" width="100%" height="100%" />
+  <!--- Bottom-layer background component. -->
   <ui:TilingComponent id="background" tileImage="{backgroundImage}" width="100%" height="100%" />
+  <mx:Image id="backgroundImage" source="assets/back.png" visible="false" />
+  
+  <!--- Middle-layer background component. -->
   <ui:TilingComponent id="midground" tileImage="{midgroundImage}" width="100%" height="100%" />
+  <mx:Image id="midgroundImage" source="assets/mid.png" visible="false" />
   
-  <mx:Image id="fargroundImage" source="@Embed(source='assets/far.png')" visible="false" />  
-  <mx:Image id="backgroundImage" source="@Embed(source='assets/back.png')" visible="false" />
-  <mx:Image id="midgroundImage" source="@Embed(source='assets/mid.png')" visible="false" />
-    
-  <!--- Displays current level. -->
-  <mx:Label 
-    id="lblLevel"
-    x="10" y="10"
-    fontSize="18" fontWeight="bold"
-    text="{currentLevel}" />
-  
-  <!--- Displays current player bankroll. -->
-  <mx:Label 
-    id="lblMoney"
-    y="10" width="100%"
-    textAlign="center"
-    fontSize="18" fontWeight="bold"
-    text="{'$' + (currentMoney + moneyThisLevel)}" />
+  <!--- Component on which particles are drawn. -->
+  <mx:UIComponent id="particleLayer" 
+    width="{objectLayer.width}" height="{objectLayer.height}"
+    x="{objectLayer.x}" y="{objectLayer.y}" />
   
   <!--- Holds all interactive game objects. -->
-  <mx:Canvas id="foreground" 
+  <mx:Canvas id="objectLayer" 
     width="{WIDTH + OFFSCREEN_PADDING * 2}" height="{HEIGHT + OFFSCREEN_PADDING * 2}"
     x="{-OFFSCREEN_PADDING}" y="{-OFFSCREEN_PADDING}"
     horizontalScrollPolicy="off" verticalScrollPolicy="off"
     />
     
+  <!--- Top-layer background component. Occludes object layer. -->
+  <ui:TilingComponent id="foreground" tileImage="{foregroundImage}" width="100%" height="100%" />   
+  <mx:Image id="foregroundImage" source="assets/fore.png" visible="false" /> 
+    
+  <!--- Displays current level. -->
+  <mx:Label 
+    id="lblLevelAndMoney"
+    x="10" y="10"
+    letterSpacing="3"
+    text="{currentLevel + ' : $ ' + (currentMoney + moneyThisLevel)}" />
+  
+  <!--
+  /////////////////////////////////////////////////////////////////////////////
+  // WINDOWS
+  /////////////////////////////////////////////////////////////////////////////
+  -->
+    
   <!--- Where the player upgrades the rocket between levels. -->
   <mx:Panel id="upgradeWindow" 
-    x="70" y="100"
-    width="520" height="260"
-    layout="vertical" horizontalAlign="center"
+    x="{WIDTH / 2 - upgradeWindow.width / 2}" y="100"
+    width="500" height="250"
+    layout="vertical" horizontalAlign="center" verticalGap="25"
     visible="false" alpha="0">
     <mx:HBox
       y="50"
       paddingBottom="15"
-      horizontalAlign="center" horizontalGap="0">
-      <mx:VBox width="160" styleName="column">
-        <mx:Label styleName="header" text="Rocket Engine" />
+      horizontalAlign="center" horizontalGap="30">
+      <mx:VBox width="125" styleName="column">
+        <mx:Label styleName="header" text="ENGINE" truncateToFit="false" />
         <mx:Text text="Improves rocket handling by 20%." width="100%" textAlign="center" />
         <mx:Label id="lblAccelerationPrice" truncateToFit="false" styleName="price" />
-        <mx:Image source="assets/ui/upgrade.swf" click="upgradeRocket(rocket.acceleration);" />
+        <mx:Image 
+          width="40" height="40"
+          source="assets/ui/upgrade.swf" 
+          click="upgradeRocket(rocket.acceleration);" />
       </mx:VBox>
       
-      <mx:VBox width="160" styleName="column">
-        <mx:Label styleName="header" text="Cannon" />
+      <mx:VBox width="125" styleName="column">
+        <mx:Label styleName="header" text="CANNON" truncateToFit="false" />
         <mx:Text text="Improves cannon firing rate by 7%." width="100%" textAlign="center" />
         <mx:Label id="lblReloadPrice" truncateToFit="false" styleName="price" />
-        <mx:Image source="assets/ui/upgrade.swf" click="upgradeRocket(rocket.reload);" />
+        <mx:Image 
+          width="40" height="40"
+          source="assets/ui/upgrade.swf" 
+          click="upgradeRocket(rocket.reload);" />
       </mx:VBox>
       
-      <mx:VBox width="160" styleName="column">
-        <mx:Label styleName="header" text="Hyperspace Drive" />
+      <mx:VBox width="125" styleName="column">
+        <mx:Label styleName="header" text="HYPERSPACE" truncateToFit="false" />
         <mx:Text text="Reduces hyperspace jump risk by 15%." width="100%" textAlign="center" />
         <mx:Label id="lblHyperspacePrice" truncateToFit="false" styleName="price" />
-        <mx:Image source="assets/ui/upgrade.swf" click="upgradeRocket(rocket.hyperspace);" />
+        <mx:Image 
+          width="40" height="40"
+          source="assets/ui/upgrade.swf" 
+          click="upgradeRocket(rocket.hyperspace);" />
       </mx:VBox>
     </mx:HBox>
     <mx:Image 
       source="assets/ui/check.swf"
-      width="40" height="40"
+      width="30" height="30"
       click="toggleUpgradeScreen(false);" />
   </mx:Panel>
   
   <!--
   /////////////////////////////////////////////////////////////////////////////
-  // DECLARATIONS
+  // TRANSITIONS
   /////////////////////////////////////////////////////////////////////////////
   -->
   
@@ -605,12 +612,12 @@
       
       <mx:RemoveChild target="{foreground}" />
       
+      <mx:RemoveChild target="{objectLayer}" />
+      
       <mx:RemoveChild target="{midground}" />
       <mx:RemoveChild target="{background}" />
-      <mx:RemoveChild target="{farground}" />
       
-      <mx:RemoveChild target="{lblLevel}" />
-      <mx:RemoveChild target="{lblMoney}" />
+      <mx:RemoveChild target="{lblLevelAndMoney}" />
       <mx:RemoveChild target="{upgradeWindow}" />
     </mx:State>
   </mx:states>

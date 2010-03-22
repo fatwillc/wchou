@@ -37,10 +37,11 @@ package ui
      * Updates the tile offset (shifts the tiled image by the specified vector). 
      * 
      * @param shift - the vector to shift the current tiled image by.
+     * @param factor - the proportion of the shift vector to apply. 
      */
-    public function update(shift:Vector2):void 
+    public function update(shift:Vector2, factor:Number):void 
     {
-      offset.acc(shift, 1);
+      offset.acc(shift, factor);
       
       invalidateDisplayList();
     }
@@ -54,6 +55,9 @@ package ui
       
       if (_tileImage == null)
         throw new Error("Image to tile has not been set yet.");
+        
+      if (_tileImage.content == null)
+        return;
         
       // Tiling is separable, so it is accomplished simply by tiling first in
       // the vertical direction, and then in the horizontal direction.

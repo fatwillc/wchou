@@ -7,6 +7,9 @@ package core {
   /** Plays sounds and handles sound assets. Implemented as singleton. */
   public class SoundManager {
     
+    /** Toggles global sound mute. */
+    public static var isMute:Boolean = false;
+    
     ///////////////////////////////////////////////////////
     // EFFECTS
     ///////////////////////////////////////////////////////
@@ -26,9 +29,9 @@ package core {
     /** Channel for music. */
     private static var musicChannel:SoundChannel;
     
-    private static var newFriendly:SoundAsset;
-    [Bindable] [Embed(source="assets/sound/NewFriendly96.mp3")] 
-    private static var new_friendly:Class;
+    private static var spacialHarvest:SoundAsset;
+    [Bindable] [Embed(source="assets/sound/SpacialHarvest96.mp3")] 
+    private static var spacial_harvest:Class;
 
     ///////////////////////////////////////////////////////
     // METHODS
@@ -37,7 +40,7 @@ package core {
     /** Initialize singleton sound manager. */
     public static function initialize():void  {
       // Music.
-      newFriendly = SoundAsset(new new_friendly());
+      spacialHarvest = SoundAsset(new spacial_harvest());
  
       // Sound assets.
       bulletEffects = new Vector.<SoundAsset>();
@@ -53,13 +56,19 @@ package core {
      * @param isLoop - If true, loops playback of game music indefinitely.
      */
     public static function playGameMusic(isLoop:Boolean):void {
+      if (isMute)
+        return;
+      
       stopMusic();
       
-      musicChannel = newFriendly.play(0, (isLoop ? int.MAX_VALUE : 0));
+      musicChannel = spacialHarvest.play(0, (isLoop ? int.MAX_VALUE : 0));
     }
     
     /** Stops playing of all music. */
     public static function stopMusic():void {
+      if (isMute)
+        return;      
+      
       if (musicChannel != null) {
         musicChannel.stop();
       }
@@ -67,11 +76,17 @@ package core {
     
     /** Plays a random bullet sound effect. */
     public static function playRandomBullet():void {
+      if (isMute)
+        return;      
+      
       bulletEffects[int(Math.random() * bulletEffects.length)].play();
     }
 
     /** Plays a random explosion sound effect. */
     public static function playRandomExplosion():void {
+      if (isMute)
+        return;      
+      
       explosionEffects[int(Math.random() * explosionEffects.length)].play();
     }
   }

@@ -37,17 +37,15 @@ ScrollBar {
 }
 
 Label {
-  fontSize: 14;
+  fontSize: 11;
   fontFamily: Tahoma;
-  letterSpacing: 3;
   color: white;
 }
 
 .header {
-  fontSize: 16;
-  fontWeight: bold;
-  fontFamily: arial;
-  letterSpacing: 1;
+  fontSize: 12;
+  fontFamily: Tahoma;
+  letterSpacing: 2;
 }
 
 .column {
@@ -55,8 +53,8 @@ Label {
 }
 
 .price {
-  fontSize: 16;
-  fontFamily: Georgia;
+  fontSize: 12;
+  fontFamily: "Courier New";
   color: white;
-  letterSpacing: 1;
+  letterSpacing: 2;
 }

@@ -32,6 +32,8 @@ package units
       super();
       
       _graphics = new UfoGraphic();
+      
+      _graphics.addEventListener(UfoGraphic.DEATH, function():void { state = ObjectState.DESTROY; });
      
       graphics.x = position.x;
       graphics.y = position.y;
@@ -41,12 +43,11 @@ package units
       v.normalize(SPEED);
     }
     
-    override public function update(dt:Number):void 
+    override public function update(dt:Number, cameraTransform:Vector2):void 
     {
-      remainingReload -= dt;
+      super.update(dt, cameraTransform);
       
-      if ((graphics as UfoGraphic).isDead)
-        state = ObjectState.DESTROY;
+      remainingReload -= dt;
     }
     
     /** Attempts to fire a laser (depends on reload timer). */
@@ -61,7 +62,7 @@ package units
     }
     
     /** Destroys the Ufo. */
-    public function die():void {
+    override public function die():void {
       state = ObjectState.INACTIVE;
       
       (graphics as UfoGraphic).playDeathAnimation();

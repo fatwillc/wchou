@@ -1,25 +1,20 @@
 package units.projectiles
 {
-  import utils.Vector2;
   import mx.controls.Image;
+  
+  import utils.Vector2;
 
   /** Lasers are shot from ufos. */
   public class Laser extends Projectile
   {
-    /** Speed of the laser. */
-    private const SPEED:Number = 200;
-        
     [Embed(source='assets/units/laser.swf')]
-    private var _source:Class;
+    private var laser:Class;
     
-    public function Laser(position:Vector2, direction:Vector2)
+    public function Laser(position:Vector2, inertia:Vector2, direction:Vector2)
     {
-      super(position, direction);
+      super(position, inertia, direction, 200);
       
-      (graphics as Image).source = _source;
-      
-      v.normalize(SPEED);
+      (graphics as Image).source = laser;
     }
-    
   }
 }
