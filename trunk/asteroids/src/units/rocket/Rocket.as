@@ -101,11 +101,11 @@ package units.rocket
           
           var emitPosition:Vector2 = center;
           emitPosition.acc(direction, -10);
-          ParticleSystem.modifyEmitter("rocket_propulsion", true, emitPosition);
+          ParticleSystem.modifyEmitter(ParticleSystem.ROCKET_PROPULSION, true, emitPosition);
         } 
         else 
         {
-          ParticleSystem.modifyEmitter("rocket_propulsion", false);
+          ParticleSystem.modifyEmitter(ParticleSystem.ROCKET_PROPULSION, false);
         }
           
         // Hyperspace jump.        

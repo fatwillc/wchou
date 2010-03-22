@@ -9,18 +9,31 @@ package particle
   import utils.Vector2;
   
   /**
-   * Handles emission and updates of particles.
+   * Handles creation of particle emitters and updates of particles.
    * Implemented as a singleton.
    */
   public class ParticleSystem
   {
+    ///////////////////////////////////////////////////////////////////////////
+    // AVAILABLE PARTICLE EMITTERS
+    ///////////////////////////////////////////////////////////////////////////
+    
+    /** Emits rocket exhaust. */
+    public static const ROCKET_PROPULSION:String = "rocket_propulsion";
+    
+    ///////////////////////////////////////////////////////////////////////////
+    // VARIABLES
+    ///////////////////////////////////////////////////////////////////////////
+    
     /** The component on which particle graphics are drawn. */
     private static var container:UIComponent;
     
     /** Current active particles. */
     private static var particles:Vector.<GameObject>; 
     
-    /** Associate array of all emitters. */
+    /** 
+     * Associate array mapping emitter names (see enum above) to emitters. 
+     */
     private static var emitters:Object = new Object();
     
     /**
@@ -35,9 +48,10 @@ package particle
       
       particles = new Vector.<GameObject>();
       
-      var rocketEmitter:ParticleEmitter = new ParticleEmitter(0.02);
-      rocketEmitter.isActive = false;
-      emitters["rocket_propulsion"] = rocketEmitter;
+      // Initialize pre-defined emitters.
+      var rocketEmitter:ParticleEmitter = new ParticleEmitter(ROCKET_PROPULSION);
+      rocketEmitter.addEmission(new Emission(Particle.ORB, 0.02, 0.3));
+      emitters[ROCKET_PROPULSION] = rocketEmitter;
     }
     
     /**
@@ -48,30 +62,39 @@ package particle
      */
     public static function update(dt:Number, cameraTransform:Vector2):void 
     {
+      for each (var emitter:ParticleEmitter in emitters) 
+      { 
+        if (emitter.toDestroy) 
+          emitters[emitter.name] = null;  
+        else
+          emitter.update(dt);
+      }
+      
       particles = particles.filter(GameObject.destroyFilter, container);
-      
-      for each (var emitter:ParticleEmitter in emitters)
-        emitter.update(dt);
-      
       for each (var p:GameObject in particles)
         p.step(dt, cameraTransform);
     }
     
     /**
      * Modify the state of an emitter.
+     * Returns true if successful, false otherwise.
      * 
      * @param emitterName - the name of the emitter.
      * @param isActive - the active state to set the emitter to.
      * @param sourcePosition - the emitter's new emission source position.
+     * 
+     * @return true if successful, false otherwise.
      */
-    public static function modifyEmitter(emitterName:String, isActive:Boolean, sourcePosition:Vector2 = null):void
+    public static function modifyEmitter(emitterName:String, isActive:Boolean, sourcePosition:Vector2 = null):Boolean
     {
       var emitter:ParticleEmitter = emitters[emitterName];
       
       if (emitter == null)
-        throw new Error("Unrecognized emitter name.");
+        return false;
         
       emitter.modify(isActive, sourcePosition);
+      
+      return true;
     }
     
     /**
