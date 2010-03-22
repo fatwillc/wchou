@@ -13,13 +13,7 @@ package units.projectiles
    */
   public class Projectile extends GameObject
   {
-    /** Amount of time in seconds from birth to death. */
-    protected var lifeSpan:Number = 1.25;
-
-    /** Current age in seconds. */
-    protected var age:Number = 0;
-    
-    public function Projectile(position:Vector2, direction:Vector2)
+    public function Projectile(position:Vector2, inertia:Vector2, direction:Vector2, speed:Number)
     {
       super();
       
@@ -30,16 +24,23 @@ package units.projectiles
       
       graphics.cacheAsBitmap = true;
       
-      v.copy(direction);
+      v.copy(inertia);
+      v.acc(direction, speed);
+      
+      _lifespan = 1.5;
     }
     
-    override public function update(dt:Number):void 
+    override public function update(dt:Number, cameraTransform:Vector2):void 
     {
-      age += dt;
+      super.update(dt, cameraTransform);
       
-      graphics.alpha = Math.sqrt((lifeSpan - age) / lifeSpan);
+      _age += dt;
       
-      if (age > lifeSpan) 
+      // Fade projectile gradually (sqrt curve) so it doesn't disappear
+      // suddenly when it dies.
+      graphics.alpha = Math.sqrt((_lifespan - _age) / _lifespan);
+      
+      if (_age > _lifespan) 
         state = ObjectState.DESTROY;
     }    
   }
