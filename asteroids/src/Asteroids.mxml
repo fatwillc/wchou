@@ -22,7 +22,7 @@
       import units.Ufo;
       import units.asteroids.*;
       import units.projectiles.*;
-      import particle.ParticleSystem;
+      import particle.*;
       import ui.TilingComponent;
       import utils.*;
       import __AS3__.vec.Vector;
@@ -68,8 +68,8 @@
       /** The player controlled rocket. */
       private var rocket:Rocket;
 
-      /** Set of bullets in play. */      
-      private var bullets:Vector.<GameObject>;
+      /** Set of projectiles in play. */      
+      private var projectiles:Vector.<GameObject>;
       
       /** Set of asteroids in play. */
       private var asteroids:Vector.<GameObject>;
@@ -101,9 +101,9 @@
         loopTimer = new Timer(1000 / TICKS_PER_SECOND);
         loopTimer.addEventListener(TimerEvent.TIMER, theLoop);
         
-        rocket = new Rocket();        
+        rocket = new Rocket();
         
-        currentState = "menu";
+        play(0);
       }
       
       /** 
@@ -118,6 +118,8 @@
           throw new Error("Level must be > 0.");
           
         loopTimer.stop();
+        
+        ParticleSystem.reset();
 
         currentState = "";
           
@@ -128,7 +130,7 @@
         midground.reset();
         background.reset();
         
-        bullets = new Vector.<GameObject>();
+        projectiles = new Vector.<GameObject>();
         asteroids = new Vector.<GameObject>();
         ufos = new Vector.<GameObject>();
         
@@ -180,13 +182,13 @@
         // This seems to be a reasonable choice and without any averse gameplay
         // effects so far..
         
-        bullets = bullets.filter(GameObject.destroyFilter, objectLayer);
+        projectiles = projectiles.filter(GameObject.destroyFilter, objectLayer);
         asteroids = asteroids.filter(GameObject.destroyFilter, objectLayer);
         ufos = ufos.filter(GameObject.destroyFilter, objectLayer);
                   
         var objects:Vector.<GameObject> = new Vector.<GameObject>();
         objects.push(rocket);
-        objects = objects.concat(bullets).concat(asteroids).concat(ufos);
+        objects = objects.concat(projectiles).concat(asteroids).concat(ufos);
         
         /////////////////////////////////////////
         // CHECK FOR VICTORY & LOSS CONDITION
@@ -243,7 +245,7 @@
             bulletPosition.acc(rocket.direction, rocket.radius * 2);
             
             projectile = new Bullet(bulletPosition, rocket.velocity, rocket.direction);
-            bullets.push(projectile);
+            projectiles.push(projectile);
             objectLayer.addChild(projectile.graphics);
           }
         }
@@ -259,7 +261,7 @@
             laserPosition.acc(laserDirection, ufo.radius * 2);
             
             projectile = new Laser(laserPosition, ufo.velocity, laserDirection);
-            bullets.push(projectile);
+            projectiles.push(projectile);
             objectLayer.addChild(projectile.graphics);
           }
         }
@@ -273,7 +275,7 @@
         // with 3-choose-2 combinations between bullets, asteroids and ufos.
         
         // Bullet-? collisions.
-        for each (projectile in bullets)
+        for each (projectile in projectiles)
         {
           for each (asteroid in asteroids)
           {
@@ -281,6 +283,12 @@
             {  
               projectile.state = ObjectState.DESTROY;
               addAsteroids(asteroid.split());
+              
+              // Asteroid-bullet particle effects.
+              var emitterName:String = "ASTEROID" + Math.random().toString();
+              var emitter:ParticleEmitter = new ParticleEmitter(emitterName, asteroid.center, 0.5);
+              emitter.addEmission(new ParticleSource(Particle.ORB, 15, 7, 1, 0.5, function():Vector2 { return Vector2.randomUnitCircle(Math.random() * 50); }, new ColorTransform(0, 0, 0, 1, 150, 150, 150)));
+              ParticleSystem.addEmitter(emitter);
               
               if (projectile is Bullet)
                 moneyThisLevel += asteroid.reward;
@@ -333,7 +341,7 @@
         // Wrap objects that move out of bounds to the other side.
         for each (go in objects)
         {
-          var center:Vector2 = (go as IBoundingSphere).center;
+          var center:Vector2 = (go as IBoundingCircle).center;
           
           if (center.x < 0) 
             go.graphics.x += objectLayer.width;
@@ -493,8 +501,7 @@
   <mx:Canvas id="objectLayer" 
     width="{WIDTH + OFFSCREEN_PADDING * 2}" height="{HEIGHT + OFFSCREEN_PADDING * 2}"
     x="{-OFFSCREEN_PADDING}" y="{-OFFSCREEN_PADDING}"
-    horizontalScrollPolicy="off" verticalScrollPolicy="off"
-    />
+    horizontalScrollPolicy="off" verticalScrollPolicy="off" />
     
   <!--- Top-layer background component. Occludes object layer. -->
   <ui:TilingComponent id="foreground" tileImage="{foregroundImage}" width="100%" height="100%" />   
@@ -506,6 +513,12 @@
     x="10" y="10"
     letterSpacing="3"
     text="{currentLevel + ' : $ ' + (currentMoney + moneyThisLevel)}" />
+    
+  <!--- Credits display. -->
+  <mx:Image id="credits"
+    x="{WIDTH - credits.width - 5}" y="{HEIGHT - credits.height - 5}"
+    width="108" height="66"
+    source="assets/credits.png" />
   
   <!--
   /////////////////////////////////////////////////////////////////////////////
@@ -591,35 +604,5 @@
     zoomWidthFrom="1" zoomHeightFrom="1" zoomWidthTo="0.01" zoomHeightTo="0.01"
     easingFunction="{Exponential.easeOut}" 
     effectEnd="upgradeWindow.visible = false; play(currentLevel);" />
-    
-  <!--
-  /////////////////////////////////////////////////////////////////////////////
-  // STATES
-  /////////////////////////////////////////////////////////////////////////////
-  -->
-  
-  <mx:states>
-    <!--- Main menu state. -->
-    <mx:State name="menu">
-      <mx:AddChild>
-        <mx:Canvas width="100%" height="100%">
-          <mx:Image 
-            source="@Embed(source='assets/title.swf')"
-            width="100%" height="100%" 
-            click="play(0);" />
-        </mx:Canvas>
-      </mx:AddChild>
-      
-      <mx:RemoveChild target="{foreground}" />
-      
-      <mx:RemoveChild target="{objectLayer}" />
-      
-      <mx:RemoveChild target="{midground}" />
-      <mx:RemoveChild target="{background}" />
-      
-      <mx:RemoveChild target="{lblLevelAndMoney}" />
-      <mx:RemoveChild target="{upgradeWindow}" />
-    </mx:State>
-  </mx:states>
     
 </mx:Application>

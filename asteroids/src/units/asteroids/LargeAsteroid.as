@@ -21,17 +21,16 @@ package units.asteroids
       super();
       
       _graphics = new Image();
-      
-      graphics.x = position.x;
-      graphics.y = position.y;
-        
       (graphics as Image).source = large;
-      (graphics as Image).load();
+      
+      graphics.width = graphics.height = 80;
       
       _graphics.rotation = Math.random() * 360;
       
-      v = Vector2.randomUnitCircle();
-      v.normalize(LINEAR_V);
+      graphics.x += position.x - center.x;
+      graphics.y += position.y - center.y;
+              
+      v = Vector2.randomUnitCircle(LINEAR_V);
     
       w = ANGULAR_V;
     }

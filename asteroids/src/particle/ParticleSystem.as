@@ -1,9 +1,5 @@
 package particle
 {
-  import __AS3__.vec.Vector;
-  
-  import core.GameObject;
-  
   import mx.core.UIComponent;
   
   import utils.Vector2;
@@ -26,15 +22,11 @@ package particle
     ///////////////////////////////////////////////////////////////////////////
     
     /** The component on which particle graphics are drawn. */
-    private static var container:UIComponent;
+    public static function get container():UIComponent { return _container; }
+    private static var _container:UIComponent;
     
-    /** Current active particles. */
-    private static var particles:Vector.<GameObject>; 
-    
-    /** 
-     * Associate array mapping emitter names (see enum above) to emitters. 
-     */
-    private static var emitters:Object = new Object();
+    /** Associate array mapping emitter names (see enum above) to current emitters. */
+    private static var emitters:Object;
     
     /**
      * Initialize the particle system.
@@ -44,14 +36,22 @@ package particle
      */
     public static function initialize(particleContainer:UIComponent):void
     {
-      container = particleContainer;
+      _container = particleContainer;
       
-      particles = new Vector.<GameObject>();
+      emitters = new Object();
       
       // Initialize pre-defined emitters.
-      var rocketEmitter:ParticleEmitter = new ParticleEmitter(ROCKET_PROPULSION);
-      rocketEmitter.addEmission(new Emission(Particle.ORB, 0.02, 0.3));
+      
+      var rocketEmitter:ParticleEmitter = new ParticleEmitter(ROCKET_PROPULSION, new Vector2());
+      rocketEmitter.addEmission(new ParticleSource(Particle.ORB, 15, 1, 0.02, 0.3, function():Vector2 { return Vector2.randomUnitCircle(30); }));
+      rocketEmitter.modify(false);
       emitters[ROCKET_PROPULSION] = rocketEmitter;
+    }
+    
+    /** Resets particle system state and removes all emitters. */
+    public static function reset():void
+    {
+      emitters = new Object();
     }
     
     /**
@@ -63,53 +63,37 @@ package particle
     public static function update(dt:Number, cameraTransform:Vector2):void 
     {
       for each (var emitter:ParticleEmitter in emitters) 
-      { 
-        if (emitter.toDestroy) 
-          emitters[emitter.name] = null;  
-        else
-          emitter.update(dt);
-      }
-      
-      particles = particles.filter(GameObject.destroyFilter, container);
-      for each (var p:GameObject in particles)
-        p.step(dt, cameraTransform);
+        emitter.update(dt, cameraTransform);
+    }
+    
+    /**
+     * Adds a new emitter to the particle system.
+     *
+     * @param emitter - the emitter to add.
+     */
+    public static function addEmitter(emitter:ParticleEmitter):void
+    {
+      if (emitters[emitter.name] != null)
+        throw new Error("Emitter with the same name already exists.");
+        
+      emitters[emitter.name] = emitter;
     }
     
     /**
      * Modify the state of an emitter.
-     * Returns true if successful, false otherwise.
      * 
      * @param emitterName - the name of the emitter.
      * @param isActive - the active state to set the emitter to.
      * @param sourcePosition - the emitter's new emission source position.
-     * 
-     * @return true if successful, false otherwise.
      */
-    public static function modifyEmitter(emitterName:String, isActive:Boolean, sourcePosition:Vector2 = null):Boolean
+    public static function modifyEmitter(emitterName:String, isActive:Boolean, sourcePosition:Vector2 = null):void
     {
       var emitter:ParticleEmitter = emitters[emitterName];
       
       if (emitter == null)
-        return false;
+        throw new Error("Emitter with name " + emitterName + " does not exist in particle system.");
         
       emitter.modify(isActive, sourcePosition);
-      
-      return true;
-    }
-    
-    /**
-     * Emits a particle.
-     * 
-     * @param type - the particle type.
-     * @param lifespan - the particle's lifespan.
-     * @param position - the particle's initial position.
-     * @param velocity - the particle's initial velocity.
-     */
-    public static function emitParticle(type:String, lifespan:Number, position:Vector2, velocity:Vector2):void 
-    {
-      var p:Particle = new Particle(type, lifespan, position, velocity);
-      particles.push(p);
-      container.addChild(p.graphics);
     }
   }
 }

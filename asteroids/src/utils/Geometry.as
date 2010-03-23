@@ -1,7 +1,7 @@
 package utils
 {
   import core.GameObject;
-  import core.IBoundingSphere;
+  import core.IBoundingCircle;
   
   import flash.geom.Matrix;
   
@@ -20,7 +20,7 @@ package utils
      * 
      * @return If spheres intersect, return the contact normal scaled by penetration distance. Otherwise, return null.
      */
-    public static function intersect(a:IBoundingSphere, b:IBoundingSphere):Vector2 
+    public static function intersect(a:IBoundingCircle, b:IBoundingCircle):Vector2 
     {
       var d:Vector2 = b.center.subtract(a.center);
       

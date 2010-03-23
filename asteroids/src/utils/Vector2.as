@@ -81,10 +81,21 @@ package utils
       x = y = 0;
     }
     
-    /** Returns a random normalized vector within unit circle. */
-    public static function randomUnitCircle():Vector2 {
+    /** 
+     * Returns a random vector within unit circle. 
+     * 
+     * @param scale - the length of vector.
+     * 
+     * @return a vector with polar coordinates (scale, [0, 2pi]).
+     */
+    public static function randomUnitCircle(scale:Number = 1):Vector2 {
       var theta:Number = Math.random() * Math.PI * 2;
-      return new Vector2(Math.sin(theta), Math.cos(theta));
+      
+      var v:Vector2 = new Vector2(Math.sin(theta), Math.cos(theta));
+      
+      v.scale(scale);
+      
+      return v;
     }
   }
 }

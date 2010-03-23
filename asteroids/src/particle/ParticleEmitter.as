@@ -2,25 +2,32 @@ package particle
 {
   import __AS3__.vec.Vector;
   
+  import core.GameObject;
+  
   import utils.Vector2;
   
   /**
-   * A particle emitter handles timing and orientation of particle emissions
-   * as a single particle "source".
+   * A particle emitter handles timing and orientation of multiple particle
+   * emission sources.
    */
   public class ParticleEmitter
   {
-    /** 
-     * Is this emitter currently active? Only active emitters emit particles.
-     * Defaults to false.
-     */
-    public var isActive:Boolean = false;
+    ///////////////////////////////////////////////////////////////////////////
+    // PROPERTIES
+    ///////////////////////////////////////////////////////////////////////////
     
-    /**
-     * Should this emitter be destroyed on the next update cycle?
-     * Set when the emitter's lifespan runs out.
+    /** 
+     * Is this emitter currently active? 
+     * Only active emitters emit particles.
+     * Defaults to true.
      */
-    public var toDestroy:Boolean = true;
+    public function get isActive():Boolean { return _isActive; }
+    public function set isActive(flag:Boolean):void 
+    { 
+      emitterAge = 0;
+      this._isActive = flag; 
+    }
+    private var _isActive:Boolean = true;
     
     /** 
      * Name of this emitter.
@@ -29,78 +36,37 @@ package particle
     public function get name():String { return _name; }
     private var _name:String;
     
+    ///////////////////////////////////////////////////////////////////////////
+    // VARIABLES
+    ///////////////////////////////////////////////////////////////////////////
+    
+    /** Current active particles. */
+    private var particles:Vector.<Particle> = new Vector.<Particle>(); 
+    
     /** Emission source position. */
-    private var sourcePosition:Vector2 = new Vector2();
+    private var sourcePosition:Vector2 = new Vector2();    
     
     /** Emissions handled by this emitter. */
-    private var emissions:Vector.<Emission> = new Vector.<Emission>();
-    /** Time til next emission for each emission in "emissions". */
-    private var timeToEmit:Vector.<Number> = new Vector.<Number>();
+    private var emissions:Vector.<ParticleSource> = new Vector.<ParticleSource>();
     
     /** Age of this emitter. */
     private var emitterAge:Number = 0;
+    
     /** Lifespan of this emitter. */
     private var emitterLifespan:Number;
     
     /**
      * Create a new particle emitter.
      * 
+     * @param name - the name of this emitter. Should match name used in ParticleSystem.
+     * @param sourcePosition - the initial position of emitted particles.
      * @param emitterLifespan - the lifespan of this emitter, defaults to 0 (infinite).
      */ 
-    public function ParticleEmitter(name:String, emitterLifespan:Number = 0)
+    public function ParticleEmitter(name:String, sourcePosition:Vector2, emitterLifespan:Number = 0)
     {
       this._name = name;
+      this.sourcePosition.copy(sourcePosition);
       this.emitterLifespan = emitterLifespan;
-    }
-    
-    /**
-     * Updates emitter state and emits a particle if applicable.
-     * 
-     * @param dt - time elapsed since last timestep.
-     */
-    public function update(dt:Number):void 
-    {
-      if (!isActive)
-        return;
-        
-      emitterAge += dt;
-      if (emitterLifespan > 0 && emitterAge > emitterLifespan)
-      {
-        toDestroy = true;
-      }
-        
-      for (var i:int = 0; i < emissions.length; i++)
-      {
-        var emission:Emission = emissions[i];
-        
-        timeToEmit[i] -= dt;
-        
-        if (timeToEmit[i] < 0)
-        {
-          timeToEmit[i] = emission.emitInterval;
-          
-          var emitVelocity:Vector2 = Vector2.randomUnitCircle();
-          emitVelocity.normalize(30);
-          
-          ParticleSystem.emitParticle(emission.particleType, emission.particleLifespan, sourcePosition, emitVelocity);
-        }
-      }
-    }
-    
-    /**
-     * Change the state of this emitter.
-     * Must be called after emitter initialization to activate and 
-     * set emitter source position.
-     *  
-     * @param isActive - active or deactivate this emitter?
-     * @param sourcePosition - the new emission source position.
-     */
-    public function modify(isActive:Boolean, sourcePosition:Vector2 = null):void
-    {
-      this.isActive = isActive;
-      
-      if (sourcePosition != null)
-        this.sourcePosition.copy(sourcePosition);
     }
     
     /**
@@ -108,14 +74,71 @@ package particle
      * 
      * @param emission - the emission to add.
      */
-    public function addEmission(emission:Emission):void
+    public function addEmission(emission:ParticleSource):void
     {
       if (emission == null)
         throw new Error("Emission to add must be non-null.");
       
       emissions.push(emission);
-      timeToEmit.push(0);
     }
-
+    
+    /**
+     * Change the state of this emitter.
+     *  
+     * @param isActive - active or deactivate this emitter?
+     * @param sourcePosition - the new emission source position.
+     */
+    public function modify(isActive:Boolean, sourcePosition:Vector2 = null):void
+    {
+      this._isActive = isActive;
+      
+      if (sourcePosition != null)
+        this.sourcePosition.copy(sourcePosition);
+    }
+    
+    /**
+     * Updates emitter state, all contained particle states 
+     * and emits a particle if applicable.
+     */
+    public function update(dt:Number, cameraTransform:Vector2):void 
+    {        
+      emitterAge += dt;
+      
+      if (emitterLifespan > 0 && emitterAge > emitterLifespan)
+        _isActive = false;
+        
+      particles = particles.filter(GameObject.destroyFilter, ParticleSystem.container);
+      for each (var p:Particle in particles)
+        p.step(dt, cameraTransform);
+      
+      if (isActive) 
+        emitParticles(dt);
+    }
+    
+    /** Performs a particle emission from each contained source. */
+    private function emitParticles(dt:Number):void 
+    {
+      for (var i:int = 0; i < emissions.length; i++)
+      {
+        var e:ParticleSource = emissions[i];
+        
+        e.timeToEmit -= dt;
+        
+        if (e.timeToEmit < 0)
+        {
+          e.timeToEmit = e.emitInterval;
+  
+          for (var j:int = 0; j < e.particlesPerEmit; j++)
+          {
+            var p:Particle = new Particle(e.particleType, e.particleSize, e.particleLifespan, sourcePosition, e.velocityFunction.call());
+            if (e.particleTint != null)
+              p.graphics.transform.colorTransform = e.particleTint;            
+            particles.push(p);
+            ParticleSystem.container.addChild(p.graphics);
+          }
+        }
+      }
+    }
+    
   }
 }

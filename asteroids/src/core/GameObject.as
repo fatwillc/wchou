@@ -12,7 +12,7 @@ package core
   import utils.Vector2;
 
   /** An abstract game object with pseudo-Newtonian properties. */
-  public class GameObject implements IBoundingSphere
+  public class GameObject implements IBoundingCircle
   {
     /** The current state of this game object. @see ObjectState for more details. */
     public var state:String = ObjectState.ACTIVE;
@@ -47,8 +47,10 @@ package core
     /** 
      * An reusable array filter that removes graphics of destroyed objects 
      * from both the "this" container and the array.
+     * 
+     * The type of the Vector must be GameObject or a subclass of GameObject.
      */
-    public static const destroyFilter:Function = function (o:GameObject, i:int, v:Vector.<GameObject>):Boolean 
+    public static const destroyFilter:Function = function (o:*, i:int, v:Vector.<*>):Boolean 
     {
       if (o.state == ObjectState.DESTROY)
         this.removeChild(o.graphics);
@@ -116,6 +118,9 @@ package core
       }
     }
     
+    /**
+     * Destroys this game object and sets it for removal from display list.
+     */
     public function die():void
     {
       state = ObjectState.DESTROY;

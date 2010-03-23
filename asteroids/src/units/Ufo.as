@@ -1,7 +1,7 @@
 package units
 {
   import core.GameObject;
-  import core.IBoundingSphere;
+  import core.IBoundingCircle;
   import core.ObjectState;
   
   import utils.Vector2;
