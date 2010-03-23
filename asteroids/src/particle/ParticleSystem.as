@@ -38,6 +38,12 @@ package particle
     {
       _container = particleContainer;
       
+      reset();
+    }
+    
+    /** Resets particle system state and removes all emitters. */
+    public static function reset():void
+    {
       emitters = new Object();
       
       // Initialize pre-defined emitters.
@@ -46,12 +52,6 @@ package particle
       rocketEmitter.addEmission(new ParticleSource(Particle.ORB, 15, 1, 0.02, 0.3, function():Vector2 { return Vector2.randomUnitCircle(30); }));
       rocketEmitter.modify(false);
       emitters[ROCKET_PROPULSION] = rocketEmitter;
-    }
-    
-    /** Resets particle system state and removes all emitters. */
-    public static function reset():void
-    {
-      emitters = new Object();
     }
     
     /**
