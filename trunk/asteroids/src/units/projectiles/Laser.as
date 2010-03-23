@@ -12,7 +12,7 @@ package units.projectiles
     
     public function Laser(position:Vector2, inertia:Vector2, direction:Vector2)
     {
-      super(position, inertia, direction, 200);
+      super(position, inertia, direction, 250);
       
       (graphics as Image).source = laser;
     }
