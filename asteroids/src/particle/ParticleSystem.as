@@ -11,7 +11,7 @@ package particle
   public class ParticleSystem
   {
     ///////////////////////////////////////////////////////////////////////////
-    // AVAILABLE PARTICLE EMITTERS
+    // PREDEFINED PARTICLE EMITTERS
     ///////////////////////////////////////////////////////////////////////////
     
     /** Emits rocket exhaust. */
@@ -49,7 +49,9 @@ package particle
       // Initialize pre-defined emitters.
       
       var rocketEmitter:ParticleEmitter = new ParticleEmitter(ROCKET_PROPULSION, new Vector2());
-      rocketEmitter.addEmission(new ParticleSource(Particle.ORB, 15, 1, 0.02, 0.3, function():Vector2 { return Vector2.randomUnitCircle(30); }));
+      var rocketSource:ParticleSource = new ParticleSource(Particle.ORB, 15, 1, 0.02, 0.3, function():Vector2 { return Vector2.randomUnitCircle(30); });
+      rocketSource.addUpdateFunction(ParticleSource.updateShrink);
+      rocketEmitter.addSource(rocketSource);
       rocketEmitter.modify(false);
       emitters[ROCKET_PROPULSION] = rocketEmitter;
     }
@@ -61,9 +63,21 @@ package particle
      * @param cameraTransform - translation vector that represents camera transformation.
      */
     public static function update(dt:Number, cameraTransform:Vector2):void 
-    {
-      for each (var emitter:ParticleEmitter in emitters) 
-        emitter.update(dt, cameraTransform);
+    {      
+      for each (var e:ParticleEmitter in emitters) 
+      {
+        if (e != null)
+        {
+          // Garbage collect emitters set to be destroyed.
+          if (e.state == EmitterState.DESTROY)
+          {
+            delete emitters[e.name];
+            e = null;
+          }
+          else
+            e.update(dt, cameraTransform);
+        }
+      }
     }
     
     /**
@@ -71,12 +85,12 @@ package particle
      *
      * @param emitter - the emitter to add.
      */
-    public static function addEmitter(emitter:ParticleEmitter):void
+    public static function addEmitter(e:ParticleEmitter):void
     {
-      if (emitters[emitter.name] != null)
+      if (emitters[e.name] != null)
         throw new Error("Emitter with the same name already exists.");
         
-      emitters[emitter.name] = emitter;
+      emitters[e.name] = e;
     }
     
     /**

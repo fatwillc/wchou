@@ -1,5 +1,7 @@
 package particle
 {
+  import __AS3__.vec.Vector;
+  
   import flash.geom.ColorTransform;
   
   import utils.Vector2;
@@ -45,6 +47,36 @@ package particle
     public function get particleTint():ColorTransform { return _particleTint; }
     private var _particleTint:ColorTransform;
     
+    /** 
+     * Update functions of emitted particles. 
+     * 
+     * An update function is generally an operation that changes the properties
+     * of the particle as it ages, e.g. decreasing the graphics object's alpha value.
+     */
+    public function get updateFunctions():Vector.<Function> { return _updateFunctions; }
+    private var _updateFunctions:Vector.<Function> = new Vector.<Function>();
+    
+    ///////////////////////////////////////////////////////////////////////////
+    // PREDEFINED UPDATE FUNCTIONS
+    ///////////////////////////////////////////////////////////////////////////
+    
+    public static const updateFade:Function = function():void { 
+      this.graphics.alpha = Math.max(0, (this.lifespan - this.age) / this.lifespan);
+    };
+    
+    public static const updateShrink:Function = function():void {
+      if (this.graphics.width > 1 && this.graphics.height > 1) 
+      {
+        this.graphics.width -= 1;
+        this.graphics.height -= 1;
+      }
+    };
+    
+    public static const updateGrow:Function = function():void {
+      this.graphics.width += 1;
+      this.graphics.height += 1;
+    };  
+    
     ///////////////////////////////////////////////////////////////////////////
     // VARIABLES
     ///////////////////////////////////////////////////////////////////////////
@@ -61,6 +93,7 @@ package particle
      * @param emitInterval - the time interval at which a particle is emitted.
      * @param particleLifespan - the lifespan of an emitted particle.
      * @param velocityFunction - the function that determines an emitted particle's initial velocity.
+     * @param particleTint - tint of emitted particles.
      */
     public function ParticleSource(particleType:String, 
                                    particleSize:Number, 
@@ -82,6 +115,18 @@ package particle
       this._velocityFunction = velocityFunction;
       
       this._particleTint = particleTint;
+      
+      this._updateFunctions.push(updateFade);
+    }
+
+    /**
+     * Adds a new update function to be executed on particle update.
+     * 
+     * @param fn - the update function to add.
+     */
+    public function addUpdateFunction(fn:Function):void 
+    {
+      _updateFunctions.push(fn);
     }
 
   }

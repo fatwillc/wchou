@@ -29,6 +29,7 @@
       import mx.effects.easing.Exponential;
       import mx.effects.easing.Back;
       
+      /** If true, debug information is drawn on screen. */
       public static var DEBUG:Boolean = false;
       
       /////////////////////////////////////////////////////////////////////////
@@ -101,8 +102,6 @@
         loopTimer = new Timer(1000 / TICKS_PER_SECOND);
         loopTimer.addEventListener(TimerEvent.TIMER, theLoop);
         
-        rocket = new Rocket();
-        
         play(0);
       }
       
@@ -120,26 +119,34 @@
         loopTimer.stop();
         
         ParticleSystem.reset();
-
-        currentState = "";
-          
+        
         moneyThisLevel = 0; 
+        
+        /////////////////////////////////////////
+        // CLEAN BACKGROUND
         
         objectLayer.removeAllChildren();
         foreground.reset();
         midground.reset();
         background.reset();
         
+        /////////////////////////////////////////
+        // RESET GAME OBJECTS
+        
+        rocket = new Rocket();
+        rocket.reset(new Vector2(objectLayer.width / 2, objectLayer.height / 2));
+        objectLayer.addChild(rocket.graphics);
+        
         projectiles = new Vector.<GameObject>();
         asteroids = new Vector.<GameObject>();
         ufos = new Vector.<GameObject>();
         
-        rocket.reset(new Vector2(objectLayer.width / 2, objectLayer.height / 2));
-        objectLayer.addChild(rocket.graphics);
+        /////////////////////////////////////////
+        // ADD ASTEROIDS
         
         var numAsteroids:int = level * 2 + 1;
         for (var i:int = 0; i < numAsteroids; i++)
-        {          
+        {
           // Spawn asteroid in a random direction away from center of screen
           // between 150 and 300 units (makes sure not to instakill player).
           var asteroidPosition:Vector2 = new Vector2(objectLayer.width / 2, objectLayer.height / 2);
@@ -150,8 +157,10 @@
           objectLayer.addChild(asteroid.graphics);
         }
         
-        levelIn.play([objectLayer]);
+        /////////////////////////////////////////
+        // PLAY!
         
+        levelIn.play([objectLayer]);
         loopTimer.start();
       }
       
@@ -163,15 +172,8 @@
        * */
       private function theLoop(e:TimerEvent):void 
       {
-        // Reusable variables.
-        var i:int;
-        var go:GameObject;
-        var projectile:Projectile;
-        var asteroid:Asteroid;
-        var a:Asteroid, b:Asteroid;
-        var ufo:Ufo;
-        
         objectLayer.graphics.clear();
+        particleLayer.graphics.clear();
         
         /////////////////////////////////////////
         // REMOVE DESTROYED OBJECTS
@@ -196,7 +198,7 @@
         // Check for collision between the rocket and all other collidables.
         if (rocket.state == ObjectState.ACTIVE) 
         {
-          for each (go in objects)
+          for each (var go:GameObject in objects)
           {
             // Don't test collision with self.
             if (go is Rocket)
@@ -244,21 +246,23 @@
             var bulletPosition:Vector2 = rocket.center;
             bulletPosition.acc(rocket.direction, rocket.radius * 2);
             
-            projectile = new Bullet(bulletPosition, rocket.velocity, rocket.direction);
+            var projectile:Projectile = new Bullet(bulletPosition, rocket.velocity, rocket.direction);
             projectiles.push(projectile);
             objectLayer.addChild(projectile.graphics);
           }
         }
         
         // Ufo fire.
-        for each (ufo in ufos) 
+        for each (var ufo:Ufo in ufos) 
         {
           if (ufo.fire())
           {
-            var laserDirection:Vector2 = Vector2.randomUnitCircle();
+            // Fire at the rocket.
+            var laserDirection:Vector2 = rocket.center.subtract(ufo.center);
+            laserDirection.normalize();
             
             var laserPosition:Vector2 = ufo.center;
-            laserPosition.acc(laserDirection, ufo.radius * 2);
+            laserPosition.acc(laserDirection, ufo.radius * 2.5);
             
             projectile = new Laser(laserPosition, ufo.velocity, laserDirection);
             projectiles.push(projectile);
@@ -275,20 +279,14 @@
         // with 3-choose-2 combinations between bullets, asteroids and ufos.
         
         // Bullet-? collisions.
-        for each (projectile in projectiles)
+        for each (var projectile:Projectile in projectiles)
         {
-          for each (asteroid in asteroids)
+          for each (var asteroid:Asteroid in asteroids)
           {
             if (Geometry.intersect(asteroid, projectile) != null)       
             {  
               projectile.state = ObjectState.DESTROY;
               addAsteroids(asteroid.split());
-              
-              // Asteroid-bullet particle effects.
-              var emitterName:String = "ASTEROID" + Math.random().toString();
-              var emitter:ParticleEmitter = new ParticleEmitter(emitterName, asteroid.center, 0.5);
-              emitter.addEmission(new ParticleSource(Particle.ORB, 15, 7, 1, 0.5, function():Vector2 { return Vector2.randomUnitCircle(Math.random() * 50); }, new ColorTransform(0, 0, 0, 1, 150, 150, 150)));
-              ParticleSystem.addEmitter(emitter);
               
               if (projectile is Bullet)
                 moneyThisLevel += asteroid.reward;
@@ -297,7 +295,7 @@
             }
           }
           
-          for each (ufo in ufos)
+          for each (var ufo:Ufo in ufos)
           {
             if (Geometry.intersect(ufo, projectile) != null)
             {
@@ -313,9 +311,9 @@
         }
         
         // Ufo-asteroid collisions.
-        for each (ufo in ufos)
+        for each (var ufo:Ufo in ufos)
         {          
-          for each (asteroid in asteroids)
+          for each (var asteroid:Asteroid in asteroids)
           {
             if (Geometry.intersect(ufo, asteroid) != null)
             {
@@ -336,10 +334,10 @@
         }
         
         /////////////////////////////////////////
-        // BOUNDARY CHECK & TIMESTEP
+        // BOUNDARY CHECK
         
         // Wrap objects that move out of bounds to the other side.
-        for each (go in objects)
+        for each (var go:GameObject in objects)
         {
           var center:Vector2 = (go as IBoundingCircle).center;
           
@@ -369,7 +367,7 @@
         /////////////////////////////////////////
         // UPDATE
         
-        for each (go in objects) 
+        for each (var go:GameObject in objects) 
           go.step(DT, rocketToCenter);
         
         /////////////////////////////////////////
@@ -513,6 +511,12 @@
     x="10" y="10"
     letterSpacing="3"
     text="{currentLevel + ' : $ ' + (currentMoney + moneyThisLevel)}" />
+    
+  <mx:Image id="wrench"
+    x="{WIDTH - wrench.width - 8}" y="8"
+    width="20" height="20"
+    source="assets/ui/wrench.swf"
+    click="{DEBUG = !DEBUG;}" />
     
   <!--- Credits display. -->
   <mx:Image id="credits"

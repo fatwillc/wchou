@@ -1,5 +1,7 @@
 package particle
 {
+  import __AS3__.vec.Vector;
+  
   import core.GameObject;
   
   import mx.controls.Image;
@@ -17,14 +19,17 @@ package particle
     
     public static const ORB:String = "orb";
     
-    ///////////////////////////////////////////////////////////////////////////
-    // EMBEDDED ASSETS
-    ///////////////////////////////////////////////////////////////////////////
-    
     [Embed(source='assets/particle/orb.swf')]
     private static var _orb:Class;
     
-    public function Particle(type:String, size:Number, lifespan:Number, position:Vector2, velocity:Vector2)
+    ///////////////////////////////////////////////////////////////////////////
+    // VARIABLES
+    ///////////////////////////////////////////////////////////////////////////
+    
+    /** Current update functions of this particle, run on each update. */
+    private var updateFunctions:Vector.<Function>;
+    
+    public function Particle(type:String, size:Number, lifespan:Number, position:Vector2, velocity:Vector2, updateFunctions:Vector.<Function>)
     {
       super();
       
@@ -47,21 +52,18 @@ package particle
       graphics.y = position.y - graphics.height / 2;
       
       v.copy(velocity);
+      
+      this.updateFunctions = updateFunctions;
     }
     
     override public function update(dt:Number, cameraTransform:Vector2):void 
     {
       super.update(dt, cameraTransform);
       
-      // TODO Modularize properties that change as a particle ages.
-      
-      graphics.alpha = Math.max(0, (lifespan - age) / lifespan);
-      
-      if (graphics.width > 1 && graphics.height > 1) 
-      {
-        graphics.width -= 1;
-        graphics.height -= 1;
-      }
+      for each (var fn:Function in updateFunctions)
+        fn.call(this);
     }
+    
+
   }
 }
