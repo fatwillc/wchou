@@ -25,10 +25,7 @@ package units.asteroids
       super();
       
       _graphics = new Image();
-      
-      graphics.x = position.x;
-      graphics.y = position.y;
-      
+
       switch (int(Math.random() * 3))
       {
         case 0: 
@@ -42,8 +39,14 @@ package units.asteroids
           break;
       }
 
-      v = Vector2.randomUnitCircle();
-      v.normalize(LINEAR_V);
+      graphics.width = graphics.height = 40;
+      
+      _graphics.rotation = Math.random() * 360;
+      
+      graphics.x += position.x - center.x;
+      graphics.y += position.y - center.y;
+
+      v = Vector2.randomUnitCircle(LINEAR_V);
       
       w = ANGULAR_V;
     }

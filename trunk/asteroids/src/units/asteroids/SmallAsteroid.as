@@ -22,9 +22,6 @@ package units.asteroids
       
       _graphics = new Image();
       
-      graphics.x = position.x;
-      graphics.y = position.y;
-      
       switch (int(Math.random() * 2))
       {
         case 0: 
@@ -34,6 +31,8 @@ package units.asteroids
           (_graphics as Image).source = small2;
           break;
       }
+      
+      graphics.width = graphics.height = 25;
       
       _graphics.rotation = Math.random() * 360;
       
