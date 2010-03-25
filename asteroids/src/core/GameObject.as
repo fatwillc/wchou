@@ -15,7 +15,7 @@ package core
   public class GameObject implements IBoundingCircle
   {
     /** The current state of this game object. @see ObjectState for more details. */
-    public var state:String = ObjectState.ACTIVE;
+    public var state:int = ObjectState.ACTIVE;
     
     /** The visual representation of this game object. */
     protected var _graphics:DisplayObject;
@@ -103,6 +103,19 @@ package core
       _age += dt;
       if (_lifespan > 0 && _age > _lifespan)
         state = ObjectState.DESTROY;
+        
+      // Wrap around boundaries.
+      if (center.x < 0) 
+        graphics.x += graphics.parent.width;
+      
+      if (center.x > graphics.parent.width)
+        graphics.x -= graphics.parent.width;
+      
+      if (center.y < 0) 
+        graphics.y += graphics.parent.height;
+      
+      if (center.y > graphics.parent.height)
+        graphics.y -= graphics.parent.height;
     }
     
     /** 

@@ -16,8 +16,8 @@ package particle
     ///////////////////////////////////////////////////////////////////////////
     
     /** The type of particle to emit. */
-    public function get particleType():String { return _particleType; }
-    private var _particleType:String;
+    public function get particleType():int { return _particleType; }
+    private var _particleType:int;
     
     /** The (square) side length of the emitted particles. */
     public function get particleSize():Number { return _particleSize; }
@@ -95,7 +95,7 @@ package particle
      * @param velocityFunction - the function that determines an emitted particle's initial velocity.
      * @param particleTint - tint of emitted particles.
      */
-    public function ParticleSource(particleType:String, 
+    public function ParticleSource(particleType:int, 
                                    particleSize:Number, 
                                    particlesPerEmit:int, 
                                    emitInterval:Number, 

@@ -1,11 +1,22 @@
 package particle
 {
+  /**
+   * Particle emitter state enumeration.
+   * 
+   * Values are generated randomly within the int value range.
+   */
   public final class EmitterState
   {
-    public static const ACTIVE:String = "active";
+    /** The emitter is emitting and updating particles. */
+    public static const ACTIVE:int = 90162;
 
-    public static const INACTIVE:String = "inactive";
+    /** The emitter is no longer emitting but still updating particles. */
+    public static const INACTIVE:int = -989984;
     
-    public static const DESTROY:String = "destroy";
+    /** 
+     * The emitter is no longer emitting, has no particles to update 
+     * and is ready for destruction. 
+     */
+    public static const DESTROY:int = -548488;
   }
 }

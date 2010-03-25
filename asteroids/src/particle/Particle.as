@@ -17,7 +17,7 @@ package particle
     // PARTICLE TYPES
     ///////////////////////////////////////////////////////////////////////////
     
-    public static const ORB:String = "orb";
+    public static const ORB:int = -1046942;
     
     [Embed(source='assets/particle/orb.swf')]
     private static var _orb:Class;
@@ -29,7 +29,7 @@ package particle
     /** Current update functions of this particle, run on each update. */
     private var updateFunctions:Vector.<Function>;
     
-    public function Particle(type:String, size:Number, lifespan:Number, position:Vector2, velocity:Vector2, updateFunctions:Vector.<Function>)
+    public function Particle(type:int, size:Number, lifespan:Number, position:Vector2, velocity:Vector2, updateFunctions:Vector.<Function>)
     {
       super();
       
