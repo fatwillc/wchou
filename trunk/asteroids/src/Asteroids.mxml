@@ -16,6 +16,7 @@
 
   <mx:Script>
     <![CDATA[
+      import flash.utils.getTimer;
       import core.*;
       import units.rocket.Rocket;
       import units.rocket.upgradables.NumericUpgradable;
@@ -28,9 +29,6 @@
       import __AS3__.vec.Vector;
       import mx.effects.easing.Exponential;
       import mx.effects.easing.Back;
-      
-      /** If true, debug information is drawn on screen. */
-      public static var DEBUG:Boolean = false;
       
       /////////////////////////////////////////////////////////////////////////
       // CONSTANTS
@@ -49,47 +47,40 @@
        */ 
       private const PAN_FACTOR:Number = 0.9;
       
-      /** Amount of simulation steps per second (amount of game loop iterations per second). */
-      private const TICKS_PER_SECOND:int = 30;
-      private const DT:Number = 1.0 / TICKS_PER_SECOND;
-      
       /** The distance at which an offscreen unit will wrap to the opposite side. */
-      private static const OFFSCREEN_PADDING:int = 50;
-      
-      /** Chance for a ufo to spawn on any given frame. */
-      private const UFO_SPAWN_CHANCE:Number = 0.001;
+      private static const OFFSCREEN_PADDING:int = 40;
       
       /////////////////////////////////////////////////////////////////////////
       // GAME VARIABLES
       /////////////////////////////////////////////////////////////////////////
       
-      /** Timer for the game loop. */
-      private var loopTimer:Timer;
+      /** If true, debug information is drawn on screen. */
+      public static var DEBUG:Boolean = false;
+
+      /** The game time when the last frame was drawn. */
+      private var lastTime:uint;
       
+      /** Toggles whether the per-frame global update cycle is called. */
+      private var isActive:Boolean = false;
+
+      /////////////////////////////////////////////////////////////////////////
+      // LEVEL VARIABLES
+      /////////////////////////////////////////////////////////////////////////
+
       /** The player controlled rocket. */
       private var rocket:Rocket;
-
-      /** Set of projectiles in play. */      
-      private var projectiles:Vector.<GameObject>;
       
-      /** Set of asteroids in play. */
-      private var asteroids:Vector.<GameObject>;
-      
-      /** Set of ufos in play. */
-      private var ufos:Vector.<GameObject>;
-      
-      /** The current level being played. */
-      [Bindable]
-      private var currentLevel:int = 0;
+      /** The currently played level. */
+      [Bindable] private var level:Level;
       
       /** Player's current bankroll. */
-      [Bindable]
-      private var currentMoney:int = 0;
-      
-      /** Amount of money earned so far in current level. */
-      [Bindable]
-      private var moneyThisLevel:int = 0;
-      
+      [Bindable] public var bankroll:int = 0;
+
+      /////////////////////////////////////////////////////////////////////////
+      // METHODS
+      /////////////////////////////////////////////////////////////////////////
+
+      /** Initializes system managers and plays level 0. */
       private function init():void         
       {
         SoundManager.initialize();
@@ -99,8 +90,9 @@
         
         ParticleSystem.initialize(particleLayer);
         
-        loopTimer = new Timer(1000 / TICKS_PER_SECOND);
-        loopTimer.addEventListener(TimerEvent.TIMER, theLoop);
+        rocket = new Rocket();
+        
+        addEventListener(Event.ENTER_FRAME, update);
         
         play(0);
       }
@@ -111,305 +103,82 @@
        * 
        * @param level - The level number.
        */
-      private function play(level:int):void 
+      private function play(levelNumber:int):void 
       {
-        if (level < 0) 
+        if (levelNumber < 0) 
           throw new Error("Level must be > 0.");
           
-        loopTimer.stop();
+        isActive = false;
         
+        // This helps reduce object buildup in the particle system.
         ParticleSystem.reset();
         
-        moneyThisLevel = 0; 
-        
-        /////////////////////////////////////////
-        // CLEAN BACKGROUND
-        
+        // Clean layers and refresh scenery.
         objectLayer.removeAllChildren();
+        particleLayer.removeAllChildren();
         foreground.reset();
         midground.reset();
         background.reset();
         
-        /////////////////////////////////////////
-        // RESET GAME OBJECTS
-        
-        rocket = new Rocket();
-        rocket.reset(new Vector2(objectLayer.width / 2, objectLayer.height / 2));
-        objectLayer.addChild(rocket.graphics);
-        
-        projectiles = new Vector.<GameObject>();
-        asteroids = new Vector.<GameObject>();
-        ufos = new Vector.<GameObject>();
-        
-        /////////////////////////////////////////
-        // ADD ASTEROIDS
-        
-        var numAsteroids:int = level * 2 + 1;
-        for (var i:int = 0; i < numAsteroids; i++)
-        {
-          // Spawn asteroid in a random direction away from center of screen
-          // between 150 and 300 units (makes sure not to instakill player).
-          var asteroidPosition:Vector2 = new Vector2(objectLayer.width / 2, objectLayer.height / 2);
-          asteroidPosition.acc(Vector2.randomUnitCircle(), Math.random() * 150 + 150);
+        // Create the level.
+        level = new Level(objectLayer, levelNumber, rocket);
+        level.addEventListener(GameEvent.WIN, win);
+        level.addEventListener(GameEvent.LOSE, lose);
 
-          var asteroid:Asteroid = new LargeAsteroid(asteroidPosition);
-          asteroids.push(asteroid);
-          objectLayer.addChild(asteroid.graphics);
-        }
-        
-        /////////////////////////////////////////
-        // PLAY!
-        
-        levelIn.play([objectLayer]);
-        loopTimer.start();
+        // Resume play!
+        levelIn.play([level.container]);
+        isActive = true;
       }
       
       /** 
-       * The main game loop. 
-       * Functionality independent to game objects (e.g. rockets, asteroids)
-       * are handled within individual update() calls. Cross-object and global
-       * gameplay logic is handled one abstraction level up, here.
+       * The main game update method. 
+       * Computes dT and updates system-level components.
        * */
-      private function theLoop(e:TimerEvent):void 
+      private function update(e:Event):void 
       {
+        if (!isActive)
+          return;
+        
+        // Calculate dt (time difference in seconds since last frame).
+        var currentTime:uint = flash.utils.getTimer();
+        var dt:Number = Math.abs(currentTime - lastTime) / 1000.0;
+        lastTime = currentTime;        
+        
+        // Clear old graphics draws.
         objectLayer.graphics.clear();
         particleLayer.graphics.clear();
-        
-        /////////////////////////////////////////
-        // REMOVE DESTROYED OBJECTS
-        
-        // Since we only perform this filter at the beginning of each update
-        // cycle (and not in between collision checks), it's possible e.g.
-        // for a single bullet to destroy both an asteroid and a ufo.
-        // This seems to be a reasonable choice and without any averse gameplay
-        // effects so far..
-        
-        projectiles = projectiles.filter(GameObject.destroyFilter, objectLayer);
-        asteroids = asteroids.filter(GameObject.destroyFilter, objectLayer);
-        ufos = ufos.filter(GameObject.destroyFilter, objectLayer);
-                  
-        var objects:Vector.<GameObject> = new Vector.<GameObject>();
-        objects.push(rocket);
-        objects = objects.concat(projectiles).concat(asteroids).concat(ufos);
-        
-        /////////////////////////////////////////
-        // CHECK FOR VICTORY & LOSS CONDITION
-        
-        // Check for collision between the rocket and all other collidables.
-        if (rocket.state == ObjectState.ACTIVE) 
-        {
-          for each (var go:GameObject in objects)
-          {
-            // Don't test collision with self.
-            if (go is Rocket)
-              continue;
-            
-            if (Geometry.intersect(rocket, go) != null) 
-            {
-              rocket.die();
-              
-              if (go is Asteroid)
-                addAsteroids((go as Asteroid).split());
-              else if (go is Projectile || go is Ufo)
-                go.die();
-                
-              break;
-            }
-          }
-        }
-        
-        // Loss condition.
-        if (rocket.state == ObjectState.DESTROY)
-        {
-          rocket.state = ObjectState.INACTIVE;
-          levelLoseOut.play([objectLayer]);
-          return;
-        }
-          
-        // Victory condition.
-        if (rocket.state == ObjectState.ACTIVE && asteroids.length == 0)
-        {
-          rocket.state = ObjectState.INACTIVE;
-          currentLevel += 1;
-          levelWinOut.play([objectLayer]);
-          return;
-        }
-        
-        /////////////////////////////////////////
-        // CROSS-OBJECT ACTIONS
-        
-        // Rocket fire.
-        if (InputState.isKeyDown(Keyboard.SPACE))
-        {
-          if (rocket.fire())
-          {
-            var bulletPosition:Vector2 = rocket.center;
-            bulletPosition.acc(rocket.direction, rocket.radius * 2);
-            
-            var projectile:Projectile = new Bullet(bulletPosition, rocket.velocity, rocket.direction);
-            projectiles.push(projectile);
-            objectLayer.addChild(projectile.graphics);
-          }
-        }
-        
-        // Ufo fire.
-        for each (var ufo:Ufo in ufos) 
-        {
-          if (ufo.fire())
-          {
-            // Fire at the rocket.
-            var laserDirection:Vector2 = rocket.center.subtract(ufo.center);
-            laserDirection.normalize();
-            
-            var laserPosition:Vector2 = ufo.center;
-            laserPosition.acc(laserDirection, ufo.radius * 2.5);
-            
-            projectile = new Laser(laserPosition, ufo.velocity, laserDirection);
-            projectiles.push(projectile);
-            objectLayer.addChild(projectile.graphics);
-          }
-        }
-        
-        /////////////////////////////////////////
-        // COLLISION PROCESSING
-        
-        // We have 4 kinds of collidable objects: 
-        // 1. the rocket, 2. bullets, 3. asteroids, and 4. ufos.
-        // All rocket-? collisions are already handled above, so we are left 
-        // with 3-choose-2 combinations between bullets, asteroids and ufos.
-        
-        // Bullet-? collisions.
-        for each (var projectile:Projectile in projectiles)
-        {
-          for each (var asteroid:Asteroid in asteroids)
-          {
-            if (Geometry.intersect(asteroid, projectile) != null)       
-            {  
-              projectile.state = ObjectState.DESTROY;
-              addAsteroids(asteroid.split());
-              
-              if (projectile is Bullet)
-                moneyThisLevel += asteroid.reward;
-                
-              break;
-            }
-          }
-          
-          for each (var ufo:Ufo in ufos)
-          {
-            if (Geometry.intersect(ufo, projectile) != null)
-            {
-              ufo.die();
-              projectile.state = ObjectState.DESTROY;
-              
-              if (projectile is Bullet)
-                moneyThisLevel += ufo.reward;
-                
-              break;
-            }  
-          }
-        }
-        
-        // Ufo-asteroid collisions.
-        for each (var ufo:Ufo in ufos)
-        {          
-          for each (var asteroid:Asteroid in asteroids)
-          {
-            if (Geometry.intersect(ufo, asteroid) != null)
-            {
-              ufo.die();
-              addAsteroids(asteroid.split());
-              break;
-            }
-          }
-        }
 
-        /////////////////////////////////////////
-        // UFO GENERATION
-        
-        if (Math.random() < ((currentLevel + 2) / 2) * UFO_SPAWN_CHANCE) {
-          ufo = new Ufo(randomOffscreenLocation(), rocket.center);
-          ufos.push(ufo);
-          objectLayer.addChild(ufo.graphics);
-        }
-        
-        /////////////////////////////////////////
-        // BOUNDARY CHECK
-        
-        // Wrap objects that move out of bounds to the other side.
-        for each (var go:GameObject in objects)
-        {
-          var center:Vector2 = (go as IBoundingCircle).center;
-          
-          if (center.x < 0) 
-            go.graphics.x += objectLayer.width;
-          
-          if (center.x > objectLayer.width)
-            go.graphics.x -= objectLayer.width;
-          
-          if (center.y < 0) 
-            go.graphics.y += objectLayer.height;
-          
-          if (center.y > objectLayer.height)
-            go.graphics.y -= objectLayer.height;
-        }
-          
-        /////////////////////////////////////////
-        // CAMERA TRANSFORM
-          
+        // Camera transform:
         // Shift everything relative to rocket position and put the rocket in the center.
         var rocketToCenter:Vector2 = new Vector2(objectLayer.width / 2, objectLayer.height / 2).subtract(rocket.center);
         
+        // Pan scenery.
         foreground.update(rocketToCenter, 1.0 / PAN_FACTOR);
         midground.update(rocketToCenter, PAN_FACTOR);
         background.update(rocketToCenter, PAN_FACTOR * PAN_FACTOR);
         
-        /////////////////////////////////////////
-        // UPDATE
-        
-        for each (var go:GameObject in objects) 
-          go.step(DT, rocketToCenter);
-        
-        /////////////////////////////////////////
-        // PARTICLES
-        
-        ParticleSystem.update(DT, rocketToCenter);
-          
-        /////////////////////////////////////////
-        // INPUT UPDATE
+        // Update level.
+        level.update(dt, rocketToCenter);
 
+        // Particles need lovin' too.
+        ParticleSystem.update(dt, rocketToCenter);
+
+        // Update input state.
         InputState.update();
       }
       
-      /** Adds an array of asteroids into play. */
-      private function addAsteroids(A:Vector.<Asteroid>):void 
+      /** Player wins the level. */
+      private function win(e:GameEvent):void 
       {
-        if (A == null)
-          return;
+        bankroll += level.moneyEarned;
         
-        for each (var asteroid:Asteroid in A)
-        {
-          asteroids.push(asteroid);
-          objectLayer.addChild(asteroid.graphics);
-        }
+        levelWinOut.play([level.container]);
       }
       
-      /** Toggles the upgrade screen. */
-      private function toggleUpgradeScreen(isShow:Boolean):void
+      /** Player loses the level. */
+      private function lose(e:GameEvent):void 
       {
-        if (isShow)
-        {
-          currentMoney += moneyThisLevel;
-          moneyThisLevel = 0;
-          
-          updateUpgradePrices();
-          
-          upgradeIn.play([upgradeWindow]);        
-        }
-        else
-        {
-          upgradeOut.play([upgradeWindow]);
-        }
+        levelLoseOut.play([level.container]);
       }
       
       /** Updates upgrade prices on upgrade window. */
@@ -422,33 +191,10 @@
         lblAccelerationPrice.text = "$" + accelerationPrice;
         lblReloadPrice.text       = "$" + reloadPrice;
         lblHyperspacePrice.text   = "$" + hyperspacePrice;
-        
-        if (accelerationPrice > currentMoney)
-          lblAccelerationPrice.setStyle("color", "red");
-        else
-          lblAccelerationPrice.setStyle("color", "white");
 
-        if (reloadPrice > currentMoney)
-          lblReloadPrice.setStyle("color", "red");
-        else
-          lblReloadPrice.setStyle("color", "white");
-          
-        if (hyperspacePrice > currentMoney)
-          lblHyperspacePrice.setStyle("color", "red");
-        else
-          lblHyperspacePrice.setStyle("color", "white");
-      }
-      
-      /** Attempts to upgrade a rocket component (depends on current available money). */
-      private function upgradeRocket(upgradable:NumericUpgradable):void
-      {
-        var change:Number = upgradable.upgrade(currentMoney);
-        
-        if (change >= 0)
-        {
-          currentMoney = change;
-          updateUpgradePrices();
-        }
+        lblAccelerationPrice.setStyle("color", (accelerationPrice > bankroll) ? "red" : "white");
+        lblReloadPrice.setStyle(      "color", (reloadPrice > bankroll)       ? "red" : "white");
+        lblHyperspacePrice.setStyle(  "color", (hyperspacePrice > bankroll)   ? "red" : "white");
       }
       
       /////////////////////////////////////////////////////////////////////////
@@ -491,7 +237,7 @@
   <mx:Image id="midgroundImage" source="assets/mid.png" visible="false" />
   
   <!--- Component on which particles are drawn. -->
-  <mx:UIComponent id="particleLayer" 
+  <mx:Canvas id="particleLayer" 
     width="{objectLayer.width}" height="{objectLayer.height}"
     x="{objectLayer.x}" y="{objectLayer.y}" />
   
@@ -510,7 +256,7 @@
     id="lblLevelAndMoney"
     x="10" y="10"
     letterSpacing="3"
-    text="{currentLevel + ' : $ ' + (currentMoney + moneyThisLevel)}" />
+    text="{level.levelNumber + ' : $ ' + (bankroll + level.moneyEarned)}" />
     
   <mx:Image id="wrench"
     x="{WIDTH - wrench.width - 8}" y="8"
@@ -547,7 +293,7 @@
         <mx:Image 
           width="40" height="40"
           source="assets/ui/upgrade.swf" 
-          click="upgradeRocket(rocket.acceleration);" />
+          click="rocket.acceleration.upgrade(bankroll); updateUpgradePrices();" />
       </mx:VBox>
       
       <mx:VBox width="125" styleName="column">
@@ -557,7 +303,7 @@
         <mx:Image 
           width="40" height="40"
           source="assets/ui/upgrade.swf" 
-          click="upgradeRocket(rocket.reload);" />
+          click="rocket.reload.upgrade(bankroll); updateUpgradePrices();" />
       </mx:VBox>
       
       <mx:VBox width="125" styleName="column">
@@ -567,13 +313,13 @@
         <mx:Image 
           width="40" height="40"
           source="assets/ui/upgrade.swf" 
-          click="upgradeRocket(rocket.hyperspace);" />
+          click="rocket.hyperspace.upgrade(bankroll); updateUpgradePrices();" />
       </mx:VBox>
     </mx:HBox>
     <mx:Image 
       source="assets/ui/check.swf"
       width="30" height="30"
-      click="toggleUpgradeScreen(false);" />
+      click="upgradeOut.play([upgradeWindow]);" />
   </mx:Panel>
   
   <!--
@@ -585,18 +331,18 @@
   <!--- Transition played upon player winning. -->
   <mx:Fade id="levelWinOut" 
     alphaFrom="1.0" alphaTo="0.0" duration="1000" 
-    effectEnd="toggleUpgradeScreen(true);" />
+    effectEnd="upgradeIn.play([upgradeWindow]);" />
   
   <!--- Transition played upon player losing. -->
   <mx:Fade id="levelLoseOut" 
     alphaFrom="1.0" alphaTo="0.0" duration="1000" 
-    effectEnd="play(currentLevel);" />
+    effectEnd="play(level.levelNumber);" />
   
   <!--- Transition played on starting a new level. -->
   <mx:Fade id="levelIn" alphaFrom="0.0" alphaTo="1.0" duration="1000" />
   
   <!--- Transitions in the upgrade window. -->
-  <mx:Parallel id="upgradeIn" effectStart="upgradeWindow.visible = true;">
+  <mx:Parallel id="upgradeIn" effectStart="upgradeWindow.visible = true;" effectEnd="updateUpgradePrices();">
     <mx:Zoom 
       zoomWidthFrom="0.01" zoomHeightFrom="0.01" zoomWidthTo="1" zoomHeightTo="1"
       easingFunction="{Exponential.easeOut}" />
@@ -607,6 +353,6 @@
   <mx:Zoom id="upgradeOut"
     zoomWidthFrom="1" zoomHeightFrom="1" zoomWidthTo="0.01" zoomHeightTo="0.01"
     easingFunction="{Exponential.easeOut}" 
-    effectEnd="upgradeWindow.visible = false; play(currentLevel);" />
+    effectEnd="upgradeWindow.visible = false; play(level.levelNumber);" />
     
 </mx:Application>

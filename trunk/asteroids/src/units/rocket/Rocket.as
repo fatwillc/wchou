@@ -63,11 +63,14 @@ package units.rocket
       
       _graphics = new BubbleRocket();
       
-      reset();
+      levelReset();
     }
     
-    /** Resets any state pertinent to changing levels. */
-    public function reset(position:Vector2 = null):void 
+    /** 
+     * Resets any state pertinent to changing levels. 
+     * Does NOT change persistent state, i.e. upgradables.
+     */
+    public function levelReset(position:Vector2 = null):void 
     {
       state = ObjectState.ACTIVE;
       

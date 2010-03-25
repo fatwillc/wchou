@@ -24,8 +24,8 @@ package particle
      * Is this emitter currently active? Defaults to true.
      * Inactive emitters will be garbage collected on the next update cycle.
      */
-    public function get state():String { return _state; }
-    private var _state:String = EmitterState.ACTIVE;  
+    public function get state():int { return _state; }
+    private var _state:int = EmitterState.ACTIVE;  
     
     ///////////////////////////////////////////////////////////////////////////
     // VARIABLES

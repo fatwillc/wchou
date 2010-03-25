@@ -32,7 +32,7 @@ package units.rocket.upgradables
     
     /** 
      * If player's current money is sufficient, performs upgrade and returns
-     * player bankroll less the upgrade cost. Otherwise, returns -1.
+     * player bankroll less the upgrade cost. Otherwise, returns the unchanged bankroll.
      */
     public function upgrade(currentMoney:Number):Number
     {
@@ -43,7 +43,7 @@ package units.rocket.upgradables
         level += 1;
         return currentMoney - cost;
       } else
-        return -1;
+        return currentMoney;
     }
     
   }
