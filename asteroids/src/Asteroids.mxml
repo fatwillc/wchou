@@ -122,8 +122,8 @@
         
         // Create the level.
         level = new Level(objectLayer, levelNumber, rocket);
-        level.addEventListener(GameEvent.WIN, win);
-        level.addEventListener(GameEvent.LOSE, lose);
+        level.addEventListener(GameEvent.WIN, endGame);
+        level.addEventListener(GameEvent.LOSE, endGame);
 
         // Resume play!
         levelIn.play([level.container]);
@@ -167,18 +167,16 @@
         InputState.update();
       }
       
-      /** Player wins the level. */
-      private function win(e:GameEvent):void 
+      /** Player wins or loses the level. */
+      private function endGame(e:GameEvent):void 
       {
-        bankroll += level.moneyEarned;
-        
-        levelWinOut.play([level.container]);
-      }
-      
-      /** Player loses the level. */
-      private function lose(e:GameEvent):void 
-      {
-        levelLoseOut.play([level.container]);
+        if (e.type == GameEvent.WIN)
+        {
+          bankroll += level.moneyEarned;
+          levelWinOut.play([level.container]);
+        }
+        else if (e.type == GameEvent.LOSE)
+          levelLoseOut.play([level.container]);
       }
       
       /** Updates upgrade prices on upgrade window. */
