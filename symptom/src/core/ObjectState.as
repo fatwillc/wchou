@@ -7,16 +7,16 @@ package core
      * An active object is interactive with other active objects.
      * This is the default state of game objects.
      */ 
-    public static const ACTIVE:String = "active";
+    public static const ACTIVE:uint = 1013245;
     
     /** 
      * An inactive object does not interact (e.g. collide) with other objects. 
      */
-    public static const INACTIVE:String = "inactive";
+    public static const INACTIVE:uint = 1693539;
     
     /**
      * A destroyed object is pending removal from the game. 
      */
-    public static const DESTROY:String = "destroy";
+    public static const DESTROY:uint = 1698404;
   }
 }
