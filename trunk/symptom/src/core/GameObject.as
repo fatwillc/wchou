@@ -33,7 +33,7 @@ package core {
     ///////////////////////////////////////////////////////////////////////////
       
     /** Current state of this object. */
-    public var state:String = ObjectState.ACTIVE;
+    public var state:uint = ObjectState.ACTIVE;
     
     /** If true, will be pinned to current position. */
     public var isPinned:Boolean = false;
@@ -57,6 +57,14 @@ package core {
     /** Visual representation of object. */
     public function get graphics():Sprite { return _graphics; }
     protected var _graphics:Sprite;
+    
+    /** Destroyed objects filter function for use in Array.filter or Vector.filter. */
+    public static var filterDestroy:Function = function(go:GameObject, i:int, v:Vector.<GameObject>):Boolean {
+      if (go.state == ObjectState.DESTROY)
+        (go.graphics.parent).removeChild(go.graphics);
+      
+      return go.state == ObjectState.ACTIVE;
+    }
     
     /** Default death transition/animation. */
     private var deathFade:Fade;

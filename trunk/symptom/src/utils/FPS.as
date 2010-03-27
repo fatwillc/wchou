@@ -1,45 +1,42 @@
 package utils {
-  
-  import flash.events.Event;
-  import flash.events.TimerEvent;
-  import flash.utils.Timer;
-  
   import mx.controls.Label;
+  import mx.formatters.NumberFormatter;
   
-  /** A frame rate counter. */
+  /** A simple FPS display. */
   public class FPS {
     
-    protected var timer:Timer;
-    protected var label:Label;
+    /** Label used to display FPS. */
+    private var label:Label;
     
-    protected var frames:int = 0;
+    /** Number of frames per FPS display update. */
+    private var displayInterval:int;
     
-    /** 
-     * Creates a new FPS counter.
-     * @param label The label which will display the framerate. 
-     */
-    public function FPS(label:Label)  {    
-      if (label == null) {
-        throw new Error("Label needs to be initialized!");
-      }
-        
+    /** Aggregate framerate since the last display. */
+    private var aggregateFramerate:Number = 0;
+    
+    /** Number of times framerate was aggregated into aggregateFramerate. */
+    private var numberAggregate:int = 0;
+    
+    /** Formats FPS numeral. */
+    private var formatter:NumberFormatter;
+    
+    public function FPS(label:Label, displayInterval:int = 10) {
       this.label = label;
+      this.displayInterval = displayInterval;
       
-      timer = new Timer(1000);
-      timer.addEventListener(TimerEvent.TIMER, tick);      
-      timer.start();
-      
-      label.addEventListener(Event.ENTER_FRAME, enterFrame);
+      formatter = new NumberFormatter();
+      formatter.precision = 2;
     }
     
-    private function tick(e:TimerEvent):void {
-      label.text = "FPS: " + frames;
+    public function update(dt:Number):void {
+      aggregateFramerate += (1 / dt);
+      numberAggregate    += 1;
       
-      frames = 0;
-    }
-    
-    private function enterFrame(e:Event):void {      
-      frames ++;
+      if (numberAggregate > displayInterval) {
+        label.text = formatter.format(aggregateFramerate / numberAggregate) + " FPS";
+        
+        aggregateFramerate = numberAggregate = 0;
+      }
     }
 
   }

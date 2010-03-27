@@ -14,6 +14,7 @@ package units {
 
     /** The DNA color. */
     private var _dna:int;
+    
     /** The cell color. */      
     private var _color:int;
     
@@ -77,6 +78,7 @@ package units {
       (graphics as Image).source = getSource(_color, _dna);
     }
     
+    /** Gets the embedded class resource associated with a specified cell and dna color. */
     private function getSource(color:int, dna:int):Class {
       switch (color) {
         case Color.RED: 

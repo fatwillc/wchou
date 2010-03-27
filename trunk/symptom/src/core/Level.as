@@ -26,17 +26,19 @@ package core
     
     ///////////////////////////////////////////////////////////////////////////
     // VISUAL STYLES ENUMERATION
+    //
+    // Values contain path to background image for that style.
     ///////////////////////////////////////////////////////////////////////////
     
     /** Standard level style. */
-    public static const STANDARD:int = 0;
+    public static const STANDARD:String = "assets/levels/background_1.jpg";
     
     /** Title screen style. */
-    public static const TITLE:int = 1;
+    public static const TITLE:String = "assets/levels/background_skin.jpg";
     
     ///////////////////////////////////////////////////////////////////////////
     // VARIABLES
-    //////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////
     
     /** The virus. */
     private var virus:Virus = new Virus();
@@ -50,9 +52,13 @@ package core
     /** End areas in the map. */
     private var endAreas:Vector.<GameObject> = new Vector.<GameObject>();
     
+    ///////////////////////////////////////////////////////////////////////////
+    // PROPERTIES
+    ///////////////////////////////////////////////////////////////////////////
+    
     /** Current state of player playing this level. */
-    public function get state():String { return _state; }
-    private var _state:String = LevelState.PLAYING;
+    public function get state():uint { return _state; }
+    private var _state:uint = LevelState.PLAYING;
     
     /** Foreground images in the map. */
     public function get images():Vector.<Image> { return _images; }
@@ -63,8 +69,8 @@ package core
     private var _length:Number;
     
     /** Visual style of the map. */
-    public function get style():int { return _style; }
-    private var _style:int = STANDARD;
+    public function get style():String { return _style; }
+    private var _style:String = STANDARD;
     
     /** The ID of the next level. */
     public function get nextLevel():int { return _nextLevel; }
@@ -75,23 +81,9 @@ package core
       return virus.center;
     }
     
-    /** All objects in the level. */
-    public function getObjects():Vector.<GameObject> {
-      var O:Vector.<GameObject> = new Vector.<GameObject>();
-      
-      O.push(virus);
-      
-      for each (var rbc:RBC in rbcs)
-        O.push(rbc);
-        
-      for each (var wbc:WBC in wbcs)
-        O.push(wbc);
-      
-      for each (var end:EndArea in endAreas)
-        O.push(end);
-      
-      return O;
-    }
+    ///////////////////////////////////////////////////////////////////////////
+    // METHODS
+    ///////////////////////////////////////////////////////////////////////////
 
     /**
      * Constructs a new level from XML level data. 
@@ -175,17 +167,15 @@ package core
       virus.graphics.y = Symptom.HEIGHT/2 - virus.graphics.height/2;
     }
     
+    /** Updates the level and contained game objects. */
     public function update(dt:Number):void {
       var virusCenter:Vector2    = virus.center;
       var virusDirection:Vector2 = virus.direction;
       var virusSpeed:Number      = virus.v.length();  
-      
-      var O:Vector.<GameObject> = getObjects();
-      
+         
       /////////////////////////////////////////
-      // VICTORY CONDITION
-      /////////////////////////////////////////
-        
+      // CHECK VICTORY CONDITION
+              
       for each (var end:EndArea in endAreas) {            
         if (Geometry.intersect(virus, end) != null) {
           _state = LevelState.WIN;
@@ -195,37 +185,32 @@ package core
       
       /////////////////////////////////////////
       // REMOVE DESTROYED GAME OBJECTS
-      /////////////////////////////////////////
       
-      var filterDestroy:Function = function(object:GameObject, i:int, v:Vector.<GameObject>):Boolean {
-        if (object.state == ObjectState.DESTROY)
-          (object.graphics.parent).removeChild(object.graphics);
-        
-        return object.state == ObjectState.ACTIVE;
-      }
-      rbcs = rbcs.filter(filterDestroy);
-      wbcs = wbcs.filter(filterDestroy);
+      rbcs = rbcs.filter(GameObject.filterDestroy);
+      wbcs = wbcs.filter(GameObject.filterDestroy);
+      
+      var allObjects:Vector.<GameObject> = getAllObjects();
   
-      /////////////////////////////////////////
-      // CROSS-OBJECT ACTIONS
-      /////////////////////////////////////////
+      ///////////////////////////////////////// 
+      // WBC ATTRACTION FORCE
       
-      // WBC ATTRACTION.
-      for each (var object:GameObject in O) {
-        if (object is WBC) {
+      for each (var go:GameObject in allObjects) {
+        if (go is WBC) {
           if (!virus.isInfecting)
-            (object as WBC).hunt(dt, virusCenter);
+            (go as WBC).hunt(dt, virusCenter);
         }
       }
   
-      // COLLISION PENALTY FORCES.
+      /////////////////////////////////////////
+      // PROCESS COLLISIONS
+      
       var k:Number = 10.0;
   
-      for (var i:int = 0; i < O.length; i++) {
-        var oi:GameObject = O[i];
+      for (var i:int = 0; i < allObjects.length; i++) {
+        var oi:GameObject = allObjects[i];
         
-        for (var j:int = i+1; j < O.length; j++) {
-          var oj:GameObject = O[j];
+        for (var j:int = i+1; j < allObjects.length; j++) {
+          var oj:GameObject = allObjects[j];
           
           var normal:Vector2 = Geometry.intersect(oi, oj);
           if (normal != null) {
@@ -261,11 +246,29 @@ package core
       }
       
       /////////////////////////////////////////
-      // UDPATE & PERFORM TIMESTEP
-      /////////////////////////////////////////
+      // UDPATE OBJECTS
       
-      for each (var object:GameObject in O)
+      for each (var object:GameObject in allObjects)
         object.step(dt);
+    }
+    
+    /** Gets all current objects in the level. */
+    public function getAllObjects():Vector.<GameObject> {
+      // Push into a single vector; more performant than concat().
+      var allObjects:Vector.<GameObject> = new Vector.<GameObject>();
+      
+      allObjects.push(virus);
+      
+      for each (var rbc:RBC in rbcs) 
+        allObjects.push(rbc);
+        
+      for each (var wbc:WBC in wbcs) 
+        allObjects.push(wbc); 
+        
+      for each (var end:EndArea in endAreas) 
+        allObjects.push(end);
+      
+      return allObjects;
     }
     
     ///////////////////////////////////////////////////////////////////////////

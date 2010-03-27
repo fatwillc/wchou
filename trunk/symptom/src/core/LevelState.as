@@ -6,16 +6,16 @@ package core {
     /** 
      * The level is currently being played. 
      */
-    public static const PLAYING:String = "playing"
+    public static const PLAYING:uint = 1697448;
     
     /** 
      * The player has won the level. 
      */
-    public static const WIN:String = "win";
+    public static const WIN:uint = 1129812;
     
     /** 
      * The player has lost the level. 
      */
-    public static const LOSE:String = "lose";
+    public static const LOSE:uint = 714869;
   }
 }

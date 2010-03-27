@@ -55,13 +55,13 @@ either expressed or implied, of William Chou.
   backgroundGradientAlphas="{[0.0, 0.0]}"
   horizontalScrollPolicy="off"  verticalScrollPolicy="off"
   applicationComplete="init();" 
+  frameRate="30"
   viewSourceURL="srcview/index.html">
 
   <mx:Style source="styles/symptom.css" />
   
   <mx:Script>
     <![CDATA[
-      import mx.events.EffectEvent;
       import core.*;
       import units.*;
       import units.wbc.*;
@@ -79,14 +79,15 @@ either expressed or implied, of William Chou.
       import mx.modules.ModuleManager;
       import mx.managers.PopUpManager;
       import mx.events.ModuleEvent;
+      import mx.events.EffectEvent;
       import mx.events.CloseEvent;
       import mx.events.StateChangeEvent;
       import mx.modules.IModuleInfo;
       import mx.effects.Fade;
       import mx.effects.easing.Cubic;
       
-      [Bindable]
-      public static var DEBUG:Boolean = false;
+      /** Toggles display of debugging information, e.g. bounding circles. */
+      [Bindable] public static var DEBUG:Boolean = false;
       
       /////////////////////////////////////////////////////////////////////////
       // CONSTANTS
@@ -94,193 +95,72 @@ either expressed or implied, of William Chou.
       
       /** Width of the game screen. */
       public static const WIDTH:Number = 800;
+      
       /** Height of the game screen. */
       public static const HEIGHT:Number = 400;
+      
       /** Maximum length of a level. */
       public static const MAX_LEVEL_LENGTH:Number = 4000;
-      
-      /** Amount of simulation steps per second (amount of game loop iterations per second). */
-      private const TICKS_PER_SECOND:int = 24;
-      /** Amount of time elapsed per simulation step. */
-      private const DT:Number = 1.0 / TICKS_PER_SECOND;
-      
-      /** 
-       * The ratio of background movement to foreground movement, 
-       * i.e. for every 1 pixel of foreground movement, the amount of background movement. 
-       */
-      public static const BACKGROUND_PAN_FACTOR:Number = 0.85;
       
       /////////////////////////////////////////////////////////////////////////
       // VARIABLES
       /////////////////////////////////////////////////////////////////////////
+            
+      /** Handles all game logic. */
+      private var game:Game;
+      
+      /** The game time when the last frame was drawn. */
+      private var lastTime:uint;
 
-      /** For uploading files. */
-      private var fileReference:FileReference;
+      /** For loading custom levels. */
+      private var fileLoader:FileReference;
       
-      /** Timer for the game loop. */
-      private var loopTimer:Timer;
+      /** Displays average framerate. */
+      private var fpsCounter:FPS;
       
-      /** The current level being played. */
-      private var currentLevel:Level;
-      
+      /** Initializes system state and begins game. */
       private function init():void {
-        new FPS(fps);
-                
+        // Set up level loading mechanism.
+        fileLoader = new FileReference();
+        fileLoader.addEventListener(Event.SELECT, function():void { fileLoader.load(); });
+        fileLoader.addEventListener(Event.COMPLETE, _loadLevelFile, false, 0, true); 
+        
+        fpsCounter = new FPS(fps, 10);
+        
         InputState.initialize(this);
         
         SoundManager.initialize();
-        
-        // Set up level loading mechanism.
-        fileReference = new FileReference();
-        fileReference.addEventListener(Event.SELECT, function():void { fileReference.load(); });
-        fileReference.addEventListener(Event.COMPLETE, _loadLevelFile, false, 0, true);
-        
-        addEventListener(StateChangeEvent.CURRENT_STATE_CHANGE, stateChanged);
-        
-        stage.addEventListener(KeyboardEvent.KEY_DOWN, keyListener);
-        stage.addEventListener(KeyboardEvent.KEY_UP, keyListener);
-        
-        loopTimer = new Timer(1000 / TICKS_PER_SECOND);
-        loopTimer.addEventListener(TimerEvent.TIMER, update);
-        
         SoundManager.playGameMusic();
         
-        play();   
+        addEventListener(Event.ENTER_FRAME, onEnterFrame);
+        
+        game = new Game(this);
+        game.play();
       }
-      
-      private function keyListener(e:KeyboardEvent):void {
-        // This is handled here as opposed to being passed through InputState 
-        // because we want pause/unpause functionality to work regardless
-        // of whether the main game loop is running or not.
-              
-        if (e.keyCode == Keyboard.SPACE && e.type == KeyboardEvent.KEY_DOWN) {
-          currentState = (currentState == "pause") ? "" : "pause";
-        }
-      }
-      
-      /** Handles state changes. */
-      private function stateChanged(e:StateChangeEvent = null):void {
-        if (currentState != "") {
-          loopTimer.stop();
-        } else {
-          loopTimer.start();
-        }
-      }
-      
-      /** Starts a new game to play. */
-      private function play(level:Level = null):void {          
-        currentLevel = (level != null) ? level : Level.getLevel(0);
-        
-        /////////////////////////////////////////
-        // Set up level styles.
-        /////////////////////////////////////////
-        
-        foreground.removeAllChildren();
-        foreground.alpha = 0;
-        foreground.width = currentLevel.length;
-        foreground.x = foreground.y = 0;
-        
-        background.width = foreground.width / BACKGROUND_PAN_FACTOR;
-        background.x = background.y = 0;
-        
-        switch (currentLevel.style) {
-          case Level.TITLE:
-            background.setTileImage(skin);
-            break;
-          case Level.STANDARD:
-            background.setTileImage(standard);
-            break;
-          default:
-            throw new Error("Unrecognized level style.");
-            break;
-        }
-        
-        /////////////////////////////////////////
-        // Load level data.
-        /////////////////////////////////////////
-        
-        for each (var img:Image in currentLevel.images) {
-          foreground.addChild(img);
-        }
 
-        for each (var object:GameObject in currentLevel.getObjects()) {
-          foreground.addChild(object.graphics);
-        }
-        
-        /////////////////////////////////////////
-        // Start game.
-        /////////////////////////////////////////
-                        
-        levelTransition.play([foreground, background], true);
-
-        loopTimer.start();
-      }
-      
-      /** Ends the game. */
-      public function endGame(isWin:Boolean):void {
-        loopTimer.stop();
-        
-        // If player won and next level exists, advance to it.
-        // Otherwise, reload first level.
-        var f:Function = function():void { 
-          var next:Level = Level.getLevel(currentLevel.nextLevel);
-          
-          if (isWin && next != null) {
-            play(next); 
-          } else {
-            play();
-          }
-          
-          levelTransition.removeEventListener(EffectEvent.EFFECT_END, arguments.callee);
-          }
-          
-        levelTransition.addEventListener(EffectEvent.EFFECT_END, f);
-        levelTransition.play([foreground, background]);
-      }
-      
       /** The main game loop. */
-      private function update(e:TimerEvent):void {
-        foreground.graphics.clear();
+      private function onEnterFrame(e:Event):void {
+        // Pause/unpause game on space press.
+        currentState = InputState.isKeyDown(Keyboard.SPACE) ? pauseState.name : "";
+        
+        if (currentState == pauseState.name)
+          return;
 
-        /////////////////////////////////////////
-        // CHECK FOR VICTORY/LOSS CONDITION
-        /////////////////////////////////////////
-        
-        if (currentLevel.state == LevelState.WIN)
-          endGame(true);
-        else if (currentLevel.state == LevelState.LOSE)
-          endGame(false);
-        
-        /////////////////////////////////////////
-        // UPDATE LEVEL/OBJECTS
-        /////////////////////////////////////////
-        
-        currentLevel.update(DT);
-        
-        /////////////////////////////////////////
-        // SCROLL SCREEN
-        /////////////////////////////////////////
+        // Calculate dt.
+        var currentTime:uint = flash.utils.getTimer();
+        var dt:Number = Math.abs(currentTime - lastTime) / 1000.0;
+        lastTime = currentTime;
 
-        var epsilon:Number = 10;
-        var virusCenter:Vector2 = currentLevel.virusPosition;
-        
-        // Scroll screen according to virus position.
-        if (virusCenter.x > width/2 && foreground.x > -foreground.width + width + epsilon) {
-          var delta:Number = Math.min(0, width/2 - virusCenter.x - foreground.x);
-          
-          foreground.x += delta;
-          background.x += delta * BACKGROUND_PAN_FACTOR;
-        }
-        
-        /////////////////////////////////////////
-        // UPDATE INPUT STATE
-        /////////////////////////////////////////
+        game.update(dt);
         
         InputState.update();
+        
+        fpsCounter.update(dt);
       }
       
+      /** Opens the level editor in a pop up. */
       private function openLevelEditor():void {
-        currentState = "pause";
+        currentState = pauseState.name;
         
         var editor:LevelEditor = new LevelEditor();
         
@@ -290,7 +170,7 @@ either expressed or implied, of William Chou.
       
       // Listener to load level data from a pre-selected file. Should not be called directly.
       private function _loadLevelFile(e:Event):void {
-        var buffer:ByteArray = fileReference.data;
+        var buffer:ByteArray = fileLoader.data;
         
         try {
           var level:XML = XML(buffer.readUTFBytes(buffer.bytesAvailable));
@@ -299,7 +179,7 @@ either expressed or implied, of William Chou.
           return;
         }
         
-        play(new Level(level));
+        game.play(new Level(level));
       }
     ]]>
   </mx:Script>
@@ -309,17 +189,7 @@ either expressed or implied, of William Chou.
   // COMPONENTS
   /////////////////////////////////////////////////////////
   -->  
-    
-  <!--- Background contains tiling background image with parallax movement. -->
-  <ui:TilingCanvas id="background"
-    height="400"
-    horizontalScrollPolicy="off" verticalScrollPolicy="off" />
-  
-  <!--- Foreground contains virus and interactive objects. -->
-  <mx:Canvas id="foreground"
-    height="400"
-    horizontalScrollPolicy="off" verticalScrollPolicy="off" />
-    
+
   <!--- Toggles game debug state. -->
   <mx:Image id="wrench"
     x="713" y="5"
@@ -339,39 +209,11 @@ either expressed or implied, of William Chou.
     x="770" y="7"
     source="@Embed(source='assets/ui/folder.swf')"
     toolTip="Load custom level"
-    click="fileReference.browse([new FileFilter('Symptom Level', '*.xml')]);" />
+    click="fileLoader.browse([new FileFilter('Symptom Level', '*.xml')]);" />
     
-  <!-- DEBUG -->
+  <!--- The FPS display. -->
   <mx:Label id="fps" color="white" visible="{Symptom.DEBUG}" />
-  
-  <!--
-  /////////////////////////////////////////////////////////
-  // BACKGROUND IMAGES
-  /////////////////////////////////////////////////////////
-  -->  
-    
-  <!-- Skin background. For loading into a TilingCanvas only. -->
-  <mx:Image id="skin"
-    visible="false"
-    source="@Embed(source='assets/levels/background_skin.jpg')" />
-  
-  <!--- Standard background image. For loading into a TilingCanvas only. -->
-  <mx:Image id="standard"
-    visible="false"
-    source="@Embed(source='assets/levels/background_1.jpg')" />
-  
-  <!--
-  /////////////////////////////////////////////////////////
-  // DECLARATIONS
-  /////////////////////////////////////////////////////////
-  -->
-  
-  <!--- Effect for fading out destroyed bodies. -->
-  <mx:Fade id="fade" alphaTo="0.0" easingFunction="{Cubic.easeIn}" />
-  
-  <!--- Effect for transitioning out of a level. -->
-  <mx:Fade id="levelTransition" alphaFrom="1.0" alphaTo="0.0" easingFunction="{Cubic.easeOut}" duration="1000" />
-  
+
   <!--
   /////////////////////////////////////////////////////////
   // STATES
@@ -379,7 +221,7 @@ either expressed or implied, of William Chou.
   -->
 
   <mx:states>
-    <mx:State name="pause">
+    <mx:State id="pauseState" name="pause">
       <mx:AddChild>
         <mx:Canvas id="modal" 
           width="100%" height="100%" 
