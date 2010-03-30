@@ -1,4 +1,10 @@
 package core {
+  import flash.display.Bitmap;
+  import flash.display.BitmapData;
+  import flash.events.Event;
+  import flash.geom.Point;
+  import flash.geom.Rectangle;
+  
   import mx.containers.Canvas;
   import mx.controls.Image;
   import mx.core.UIComponent;
@@ -42,6 +48,19 @@ package core {
     private var levelTransition:Fade;
     
     /** 
+     * Current distance the level is horizontally displaced/scrolled.
+     */
+    private var levelPosition:Number = 0;
+    
+    ///////////////////////////////////////////////////////////////////////////
+    // ASSETS
+    ///////////////////////////////////////////////////////////////////////////
+    
+    private var resourcesLoading:int = 0;
+    
+    private var backgroundImage:Image;
+    
+    /** 
      * Creates a new game.
      * 
      * @param container - the top level component that will house the game
@@ -51,18 +70,21 @@ package core {
       foreground = new Canvas();
       foreground.height = 400;
       foreground.horizontalScrollPolicy = foreground.verticalScrollPolicy = "off";
-      container.addChildAt(foreground, 0);
+//      container.addChildAt(foreground, 0);
       
       background = new TilingCanvas();
       background.height = 400;
       background.horizontalScrollPolicy = background.verticalScrollPolicy = "off";
-      container.addChildAt(background, 0);
+//      container.addChildAt(background, 0);
       
       levelTransition = new Fade();
       levelTransition.alphaFrom = 0;
       levelTransition.alphaTo = 1.0;
       levelTransition.easingFunction = Cubic.easeOut;
       levelTransition.duration = 1000;
+      
+      backgroundImage = new Image();
+      backgroundImage.addEventListener(Event.COMPLETE, loadComplete);
     }
     
     public function update(dt:Number):void {
@@ -82,6 +104,22 @@ package core {
       
       // Scroll screen according to virus position.
       scrollScreen();
+    }
+    
+    public function render(buffer:BitmapData):void {
+      if (!isActive)
+        return;
+      
+      // Render background.
+      var backBmp:BitmapData = Bitmap(backgroundImage.content).bitmapData;
+      
+      var backgroundPosition:Number = levelPosition * BACKGROUND_PAN_FACTOR;
+      while (backgroundPosition < -backBmp.width) {
+        backgroundPosition += backBmp.width;
+      }
+      
+      buffer.copyPixels(backBmp, new Rectangle(-backgroundPosition, 0, backBmp.width + backgroundPosition, Symptom.HEIGHT), new Point());
+      buffer.copyPixels(backBmp, new Rectangle(0, 0, -backgroundPosition, Symptom.HEIGHT), new Point(backBmp.width + backgroundPosition, 0));
     }
       
     /** Starts a new game to play. */
@@ -106,9 +144,10 @@ package core {
       for each (var go:GameObject in currentLevel.getAllObjects())
         foreground.addChild(go.graphics);
       
-      // Start game.
-      levelTransition.play([foreground, background]);
-      isActive = true;
+      resourcesLoading += 1;
+      backgroundImage.load(currentLevel.style);
+
+      levelTransition.play([foreground, background]);  
     }
     
     /** Ends the game. */
@@ -136,6 +175,18 @@ package core {
     }
     
     /** 
+     * Decrements resourcesLoading counter. 
+     * If there are no more resources to load, activate game.
+     */
+    private function loadComplete(e:Event):void {
+      resourcesLoading -= 1;
+      
+      if (resourcesLoading == 0) {
+        isActive = true;
+      }
+    }
+    
+    /** 
      * Pans the foreground (and background, accordingly) so that the virus
      * never travels past the left half of the viewable screen.
      */
@@ -145,6 +196,8 @@ package core {
       
       if (virusCenter.x > Symptom.WIDTH/2 && foreground.x > -foreground.width + Symptom.WIDTH + epsilon) {
         var delta:Number = Math.min(0, Symptom.WIDTH/2 - virusCenter.x - foreground.x);
+        
+        levelPosition += delta;
         
         foreground.x += delta;
         background.x += delta * BACKGROUND_PAN_FACTOR;
