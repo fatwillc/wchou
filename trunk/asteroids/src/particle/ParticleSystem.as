@@ -1,5 +1,7 @@
 package particle
 {
+  import __AS3__.vec.Vector;
+  
   import mx.core.UIComponent;
   
   import utils.Vector2;
@@ -28,6 +30,12 @@ package particle
     /** Associate array mapping emitter names (see enum above) to current emitters. */
     private static var emitters:Object;
     
+    /** Pool of particle objects (object pool pattern). */
+    private static var particlePool:Vector.<Particle>;
+    
+    /** Maximum number of objects in particle object pool. */
+    private static var MAX_ACTIVE_PARTICLES:int = 100;
+    
     /**
      * Initialize the particle system.
      * 
@@ -37,6 +45,11 @@ package particle
     public static function initialize(particleContainer:UIComponent):void
     {
       _container = particleContainer;
+      
+      // Initialize particle object pool.
+      particlePool = new Vector.<Particle>(MAX_ACTIVE_PARTICLES);      
+      for (var i:int = 0; i < particlePool.length; i++) 
+        particlePool[i] = new Particle();
       
       reset();
     }
@@ -108,6 +121,52 @@ package particle
         throw new Error("Emitter with name " + emitterName + " does not exist in particle system.");
         
       emitter.modify(isActive, sourcePosition);
+    }
+    
+    /**
+     * Gets a particle from the particle object pool.
+     * If none are currently available, return null.
+     */
+    public static function getParticleFromPool():Particle
+    {
+      
+      for (var i:int = 0; i < particlePool.length; i++)
+      {
+        if (particlePool[i] != null)
+        {
+          var p:Particle = particlePool[i];
+          particlePool[i] = null;
+          return p;
+        }
+      }
+      
+      return null;
+    }
+    
+    /** 
+     * Returns a particle to the particle object pool.
+     * Throws an error if provided particle is already in the pool.
+     * Throws an error if the particle pool is already full.
+     * 
+     * @param p - the particle to return.
+     */
+    public static function returnParticleToPool(p:Particle):void
+    {
+      var emptySlot:int = -1;
+      
+      for (var i:int = 0; i < particlePool.length; i++)
+      {        
+        if (particlePool[i] == p)
+          throw new Error("Particle already exists in pool.");
+        
+        if (particlePool[i] == null) 
+          emptySlot = i;
+      }      
+      
+      if (emptySlot >= 0)
+        particlePool[i] = p;
+      else
+        throw new Error("Particle pool is full.");
     }
   }
 }

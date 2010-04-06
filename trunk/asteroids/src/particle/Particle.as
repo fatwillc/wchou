@@ -3,6 +3,7 @@ package particle
   import __AS3__.vec.Vector;
   
   import core.GameObject;
+  import core.ObjectState;
   
   import mx.controls.Image;
   
@@ -26,21 +27,43 @@ package particle
     // VARIABLES
     ///////////////////////////////////////////////////////////////////////////
     
+    public var objectID:Number = Math.random();
+    
     /** Current update functions of this particle, run on each update. */
     private var updateFunctions:Vector.<Function>;
     
-    public function Particle(type:int, size:Number, lifespan:Number, position:Vector2, velocity:Vector2, updateFunctions:Vector.<Function>)
+    /** 
+     * Default particle constructor. 
+     * State initialization must be called via initialize(). 
+     */
+    public function Particle()
     {
       super();
+      
+      _graphics = new Image();
+    }
+    
+    /**
+     * Initializes the state of this particle. 
+     * Must be called before usage in a particle system.
+     */ 
+    public function initialize(type:int, size:Number, lifespan:Number, position:Vector2, velocity:Vector2, updateFunctions:Vector.<Function>):void
+    {
+      ///////////////////////////////////////////
+      // Reset state.
+      
+      state = ObjectState.ACTIVE;
+      _age = 0;
+      
+      ///////////////////////////////////////////
+      // Set initialization parameters.
       
       _lifespan = lifespan;
       
       switch (type) 
       {
         case ORB:
-          var img:Image = new Image();
-          img.source = _orb;
-          _graphics = img;
+          (graphics as Image).source = _orb;
           break;
         default:
           throw new Error("Unrecognized particle type.");

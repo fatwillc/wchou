@@ -1,7 +1,5 @@
 package units.asteroids
 {
-  import flash.events.Event;
-  
   import mx.controls.Image;
   
   import utils.Vector2;
@@ -16,7 +14,7 @@ package units.asteroids
     [Embed(source='assets/units/asteroids/small-2.swf')]
     private var small2:Class;
     
-    public function SmallAsteroid(position:Vector2)
+    public function SmallAsteroid(position:Vector2, inertia:Vector2)
     {
       super();
       
@@ -39,8 +37,8 @@ package units.asteroids
       graphics.x += position.x - center.x;
       graphics.y += position.y - center.y;
       
-      v = Vector2.randomUnitCircle();
-      v.normalize(LINEAR_V);
+      v = Vector2.randomUnitCircle(LINEAR_V);
+      v.acc(inertia, 1);
       
       w = ANGULAR_V;
       
