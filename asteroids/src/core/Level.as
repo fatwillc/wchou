@@ -76,7 +76,7 @@ package core
         var asteroidPosition:Vector2 = new Vector2(container.width / 2, container.height / 2);
         asteroidPosition.acc(Vector2.randomUnitCircle(), Math.random() * 150 + 150);
   
-        var asteroid:Asteroid = new LargeAsteroid(asteroidPosition);
+        var asteroid:Asteroid = new LargeAsteroid(asteroidPosition, new Vector2());
         asteroids.push(asteroid);
         container.addChild(asteroid.graphics);
       }
@@ -168,7 +168,7 @@ package core
       {
         rocket.state = ObjectState.INACTIVE;
         levelNumber += 1;
-        dispatchEvent(new GameEvent(GameEvent.LOSE));
+        dispatchEvent(new GameEvent(GameEvent.WIN));
         return;
       }
     }

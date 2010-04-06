@@ -2,7 +2,7 @@ package particle
 {
   import __AS3__.vec.Vector;
   
-  import core.GameObject;
+  import core.ObjectState;
   
   import utils.Vector2;
   
@@ -12,6 +12,25 @@ package particle
    */
   public class ParticleEmitter
   {
+    ///////////////////////////////////////////////////////////////////////////
+    // CONSTANTS
+    ///////////////////////////////////////////////////////////////////////////
+    
+    /** 
+     * An reusable array filter that removes graphics of destroyed particles 
+     * from its parent and returns it to the ParticleSystem particle object pool.
+     */
+    private static const particleFilter:Function = function (p:Particle, i:int, v:Vector.<Particle>):Boolean 
+    {
+      if (p.state == ObjectState.DESTROY)
+      {
+        (p.graphics.parent).removeChild(p.graphics);
+        ParticleSystem.returnParticleToPool(p);
+      } 
+      
+      return p.state != ObjectState.DESTROY;
+    };   
+    
     ///////////////////////////////////////////////////////////////////////////
     // PROPERTIES
     ///////////////////////////////////////////////////////////////////////////
@@ -44,7 +63,7 @@ package particle
     private var emitterAge:Number = 0;
     
     /** Lifespan of this emitter. */
-    private var emitterLifespan:Number;
+    private var emitterLifespan:Number; 
     
     /**
      * Create a new particle emitter.
@@ -103,11 +122,14 @@ package particle
         _state = EmitterState.INACTIVE;
         
       // Filter particles set to be destroyed.
-      particles = particles.filter(GameObject.destroyFilter, ParticleSystem.container);
+      particles = particles.filter(particleFilter, ParticleSystem.container);
       
       // If emitter is inactive and there are no more particles to update, set for garbage collection.
       if (particles.length == 0 && _state == EmitterState.INACTIVE)
+      {
         _state = EmitterState.DESTROY;
+        return;
+      }
       
       // Update particles.
       for each (var p:Particle in particles)
@@ -131,12 +153,13 @@ package particle
   
           for (var j:int = 0; j < source.particlesPerEmit; j++)
           {
-            var p:Particle = new Particle(source.particleType, 
-                                          source.particleSize, 
-                                          source.particleLifespan, 
-                                          sourcePosition, 
-                                          source.velocityFunction.call(),
-                                          source.updateFunctions);
+            var p:Particle = ParticleSystem.getParticleFromPool();
+            p.initialize(source.particleType, 
+                         source.particleSize, 
+                         source.particleLifespan, 
+                         sourcePosition, 
+                         source.velocityFunction.call(),
+                         source.updateFunctions);
             
             if (source.particleTint != null)
               p.graphics.transform.colorTransform = source.particleTint;     

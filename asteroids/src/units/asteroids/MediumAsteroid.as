@@ -2,8 +2,6 @@ package units.asteroids
 {
   import __AS3__.vec.Vector;
   
-  import flash.events.Event;
-  
   import mx.controls.Image;
   
   import utils.Vector2;
@@ -20,7 +18,7 @@ package units.asteroids
     [Embed(source='assets/units/asteroids/medium-3.swf')]
     private var medium3:Class;
     
-    public function MediumAsteroid(position:Vector2)
+    public function MediumAsteroid(position:Vector2, inertia:Vector2)
     {
       super();
       
@@ -47,6 +45,7 @@ package units.asteroids
       graphics.y += position.y - center.y;
 
       v = Vector2.randomUnitCircle(LINEAR_V);
+      v.acc(inertia, 1);
       
       w = ANGULAR_V;
     }
@@ -58,7 +57,7 @@ package units.asteroids
       var A:Vector.<Asteroid> = new Vector.<Asteroid>();
       for (var i:int = 0; i < 3; i++)
       {
-        var asteroid:Asteroid = new SmallAsteroid(center);
+        var asteroid:Asteroid = new SmallAsteroid(center, v);
         A.push(asteroid);
       }
       return A;

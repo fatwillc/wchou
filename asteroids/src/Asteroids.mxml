@@ -16,7 +16,6 @@
 
   <mx:Script>
     <![CDATA[
-      import flash.utils.getTimer;
       import core.*;
       import units.rocket.Rocket;
       import units.rocket.upgradables.NumericUpgradable;
@@ -26,6 +25,7 @@
       import particle.*;
       import ui.TilingComponent;
       import utils.*;
+      import flash.utils.getTimer;
       import __AS3__.vec.Vector;
       import mx.effects.easing.Exponential;
       import mx.effects.easing.Back;
@@ -58,7 +58,7 @@
       public static var DEBUG:Boolean = false;
 
       /** The game time when the last frame was drawn. */
-      private var lastTime:uint;
+      private var lastT:uint;
       
       /** Toggles whether the per-frame global update cycle is called. */
       private var isActive:Boolean = false;
@@ -82,7 +82,7 @@
 
       /** Initializes system managers and plays level 0. */
       private function init():void         
-      {
+      {        
         SoundManager.initialize();
         SoundManager.playGameMusic(true);
         
@@ -135,14 +135,14 @@
        * Computes dT and updates system-level components.
        * */
       private function update(e:Event):void 
-      {
+      {        
         if (!isActive)
           return;
         
         // Calculate dt (time difference in seconds since last frame).
-        var currentTime:uint = flash.utils.getTimer();
-        var dt:Number = Math.abs(currentTime - lastTime) / 1000.0;
-        lastTime = currentTime;        
+        var thisT:uint = flash.utils.getTimer();
+        var dt:Number = Math.abs(thisT - lastT) / 1000.0;
+        lastT = thisT;
         
         // Clear old graphics draws.
         objectLayer.graphics.clear();
