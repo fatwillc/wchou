@@ -1,5 +1,5 @@
-package units {
-  
+package units
+{
   import core.Color;
   import core.GameObject;
   import core.InputState;
@@ -15,8 +15,8 @@ package units {
   import utils.Vector2;
 
   /** The player-controlled virus. */
-  public class Virus extends GameObject {
-    
+  public class Virus extends GameObject 
+  {
     ///////////////////////////////////////////////////////////////////////////
     // CONSTANTS
     ///////////////////////////////////////////////////////////////////////////
@@ -58,7 +58,8 @@ package units {
     [Embed(source='assets/virus/virus_yellow.swf')]
     private var yellow:Class;
     
-    public function Virus()  {
+    public function Virus() 
+    {
       super(0.5);
      
       _graphics = new Image();
@@ -79,7 +80,8 @@ package units {
      * 
      * @param rbc - the RBC to infect.
      */
-    public function infect(rbc:RBC):void {                  
+    public function infect(rbc:RBC):void 
+    {                  
       SoundManager.playRandomInfect();
       
       infected = rbc;
@@ -92,7 +94,8 @@ package units {
     }
     
     /** Resets the state of the virus. */
-    public function reset():void {
+    public function reset():void 
+    {
       F.x = F.y = v.x = v.y = 0;
       
       changeDNA(Color.RED);
@@ -100,11 +103,16 @@ package units {
       graphics.rotation = 90;
     }   
     
-    override public function update(dt:Number):void {
-      if (infected != null) {
-        if (InputState.isMouseDown && !InputState.wasMouseDown) {
+    override public function update(dt:Number):void 
+    {
+      if (infected != null) 
+      {
+        if (InputState.isMouseDown && !InputState.wasMouseDown) 
+        {
           launch();
-        } else {
+        } 
+        else 
+        {
           // If infecting, move virus to infected object center.
           graphics.x += infected.center.x - center.x;
           graphics.y += infected.center.y - center.y;
@@ -112,33 +120,36 @@ package units {
           F.zero();
           v.zero();
         }
-      } else {
+      } 
+      else 
+      {
         // Normal movement.
-        if (InputState.isMouseDown) {
+        if (InputState.isMouseDown) 
+        {
           var move:Vector2 = new Vector2(direction.x * F_MOVE, direction.y * F_MOVE);
           
           // Taper acceleration as virus approaches max speed.
-          if (direction.dot(v) > 0) {
+          if (direction.dot(v) > 0)
             move.scale((MAX_SPEED - v.length())/Virus.MAX_SPEED);
-          }
           
           F.x += move.x;
           F.y += move.y;
         }
       }
         
-      if (v.length() > Virus.MAX_SPEED) {
+      if (v.length() > Virus.MAX_SPEED)
         v.normalize(Virus.MAX_SPEED);
-      }
       
       rotateToMouse();
     } 
 
     /** Checks launch timer expiration and handles launching. */
-    private function launch(e:TimerEvent = null):void {
+    private function launch(e:TimerEvent = null):void 
+    {
       var img:Image = graphics as Image;
       
-      if (e != null) {
+      if (e != null) 
+      {
         // A non-null argument means that this function was called
         // automatically by a timer. In that case, only expire the launch
         // when the timer expires.
@@ -148,9 +159,8 @@ package units {
         img.graphics.beginFill(0xffffff, 0.75);
         img.graphics.drawCircle(graphics.width / 2, -10, 3);
         
-        if (launchTimer.currentCount < launchTimer.repeatCount) {
+        if (launchTimer.currentCount < launchTimer.repeatCount)
           return;
-        }
       }
       
       SoundManager.playRandomLaunch();
@@ -168,10 +178,12 @@ package units {
     }
     
     /** Changes the virus's DNA color. */
-    private function changeDNA(dna:int):void {
+    private function changeDNA(dna:int):void 
+    {
       this._dna = dna;
       
-      switch (dna) {
+      switch (dna) 
+      {
         case Color.RED: 
           (graphics as Image).source = red; break;
         case Color.BLUE: 
@@ -186,16 +198,17 @@ package units {
     }
     
     /** Toggles the visual state of the virus between normal and infecting. */
-    private function toggleInfect(isInfect:Boolean):void {
-      if (isInfect) {
+    private function toggleInfect(isInfect:Boolean):void 
+    {
+      if (isInfect)
         (graphics as Image).source = null;
-      } else {
+      else
         changeDNA(_dna);
-      }
     }
     
     /** Rotates virus to face the current mouse position. */
-    private function rotateToMouse():void {
+    private function rotateToMouse():void 
+    {
       var halfWidth:Number = graphics.width / 2;
       var halfHeight:Number = graphics.height / 2;
       
@@ -215,7 +228,8 @@ package units {
       graphics.transform.matrix = m;
     }
     
-    override public function get radius():Number {
+    override public function get radius():Number 
+    {
       return 17;
     }
   }

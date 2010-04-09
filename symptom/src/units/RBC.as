@@ -1,13 +1,13 @@
-package units {
-  
+package units 
+{
   import core.GameObject;
   import core.Color;
   
   import mx.controls.Image;
 
   /** A red blood cell. */
-  public class RBC extends GameObject {
-
+  public class RBC extends GameObject 
+  {
     ///////////////////////////////////////////////////////////////////////////
     // VARIABLES
     ///////////////////////////////////////////////////////////////////////////
@@ -58,20 +58,20 @@ package units {
     [Embed(source='assets/units/rbc/YY.swf')]
     private var YY:Class;
     
-    public function RBC()  {
-      super();
+    public function RBC() 
+    {
+      super(5);
       
       _graphics = new Image();
       graphics.width = graphics.height = 52.2;
       graphics.cacheAsBitmap = true;
       
       setColors(Color.RED, Color.RED);
-      
-      mass = 5;
     }
     
     /** Set cell and DNA color. */
-    public function setColors(color:int, dna:int):void {
+    public function setColors(color:int, dna:int):void 
+    {
       this._color = color;
       this._dna = dna;
       
@@ -79,7 +79,8 @@ package units {
     }
     
     /** Gets the embedded class resource associated with a specified cell and dna color. */
-    private function getSource(color:int, dna:int):Class {
+    private function getSource(color:int, dna:int):Class 
+    {
       switch (color) {
         case Color.RED: 
           switch (dna) {
@@ -127,12 +128,14 @@ package units {
     }
     
     /** The DNA color. */
-    public function get dna():int {
+    public function get dna():int 
+    {
       return _dna;
     }
     
     /** The cell color. */
-    public function get color():int {
+    public function get color():int 
+    {
       return _color;
     }
   }

@@ -1,5 +1,5 @@
-package core {
-  
+package core 
+{
   import flash.display.InteractiveObject;
   import flash.display.Sprite;
   import flash.geom.Matrix;
@@ -13,8 +13,8 @@ package core {
   import utils.Vector2;
 
   /** An interactive object and Newtonian body. */
-  public class GameObject implements IBoundingCircle  {
-    
+  public class GameObject implements IBoundingCircle 
+  {
     ///////////////////////////////////////////////////////////////////////////
     // CONSTANTS
     ///////////////////////////////////////////////////////////////////////////
@@ -23,7 +23,7 @@ package core {
     private const LINEAR_DRAG:Number = 0.01;
     
     /** Rotational pseudo-friction coefficient. */
-    private const ROTATIONAL_DRAG:Number = 0.05;
+    private const ROTATIONAL_DRAG:Number = 0.02;
     
     /** Coefficient of restitution (amount of bounce after a collision). */
     private const RESTITUTION:Number = 0.5;
@@ -50,6 +50,14 @@ package core {
     /** Mass of the object. */
     public var mass:Number;
     
+    /** The current age of this object. */
+    public function get age():Number { return _age; }
+    protected var _age:Number = 0;
+    
+    /** The lifespan of this object. A value of 0 represents an infinite lifespan. */
+    public function get lifespan():Number { return _lifespan; }
+    protected var _lifespan:Number = 0;
+    
     ///////////////////////////////////////////////////////////////////////////
     // PROPERTIES & OTHER
     ///////////////////////////////////////////////////////////////////////////
@@ -59,17 +67,19 @@ package core {
     protected var _graphics:Sprite;
     
     /** Destroyed objects filter function for use in Array.filter or Vector.filter. */
-    public static var filterDestroy:Function = function(go:GameObject, i:int, v:Vector.<GameObject>):Boolean {
+    public static var filterDestroy:Function = function(go:GameObject, i:int, v:Vector.<GameObject>):Boolean 
+    {
       if (go.state == ObjectState.DESTROY)
         (go.graphics.parent).removeChild(go.graphics);
-      
+
       return go.state == ObjectState.ACTIVE;
     }
     
     /** Default death transition/animation. */
     private var deathFade:Fade;
     
-    public function GameObject(mass:Number = 1.0) {
+    public function GameObject(mass:Number = 1.0) 
+    {
       super();
       
       F = new Vector2();
@@ -84,7 +94,8 @@ package core {
     }
     
     /** Steps position by a specified timestep. */
-    public function step(dt:Number):void {
+    public function step(dt:Number):void 
+    {
       // Subclass force accumulations, etc.
       update(dt);
       
@@ -97,61 +108,36 @@ package core {
       v.acc(F, 1.0/mass);
 
       // Perform step.
-      if (!isPinned) {
+      if (!isPinned) 
+      {
         _graphics.x += dt * v.x;
         _graphics.y += dt * v.y;
         
-        if (Math.abs(w) > 0) {          
+        if (Math.abs(w) > 0)         
           rotateAboutCenter(w);
-        }
       }
       
       checkBoundaries();
       
+      // Kill object if it exceeded its lifespan.
+      _age += dt;
+      if (_lifespan > 0 && _age > _lifespan)
+        state = ObjectState.DESTROY;
+      
       // Clear forces.
       F.zero();
       
-      if (Symptom.DEBUG && graphics.parent != null) {
+      if (Symptom.DEBUG && graphics.parent != null) 
+      {
         // Draw bounding circle.
         (graphics.parent as Sprite).graphics.lineStyle(1, 0xff0000);
         (graphics.parent as Sprite).graphics.drawCircle(center.x, center.y, radius);
       }
     }
     
-    /** 
-     * Confines the object to the dimensions of its graphical parent.
-     * Bounces off the edges of those dimensions with a certain restitution factor.
-     */
-    private function checkBoundaries():void {
-      if (graphics.parent == null)
-        return;
-      
-      var c:Vector2 = center;
-      var r:Number = radius;
-      
-      if (c.x - r < 0) {
-        graphics.x += r - c.x;
-        v.x *= -RESTITUTION;
-      }
-      
-      if (c.x + r > graphics.parent.width) {
-        graphics.x -= c.x + r - graphics.parent.width;
-        v.x *= -RESTITUTION;
-      }
-      
-      if (c.y - r < 0) {
-        graphics.y += r - c.y;
-        v.y *= -RESTITUTION;
-      } 
-      
-      if (c.y + r > graphics.parent.height) {
-        graphics.y -= c.y + r - graphics.parent.height;
-        v.y *= -RESTITUTION;
-      }
-    }
-    
     /** Applies custom subclass forces and actions. */
-    public function update(dt:Number):void {
+    public function update(dt:Number):void 
+    {
       // To be implemented by subclasses.
     }
 
@@ -159,7 +145,8 @@ package core {
      * Initiates death sequence of the game object.
      * Default behavior is a quick fade out and removal.
      */
-    public function die():void {
+    public function die():void 
+    {
       state = ObjectState.INACTIVE;
       deathFade.play([graphics]);
     }
@@ -180,7 +167,8 @@ package core {
       return dir;
     }    
     
-    public function get center():Vector2 {
+    public function get center():Vector2 
+    {
       // Standard Flex components define rotation wrt the top left corner,
       // but imported SWCs define rotation wrt the center of the UIMovieClip.
       if (graphics is UIMovieClip)
@@ -210,7 +198,7 @@ package core {
      * 
      * @param angle - The amount to rotate in degrees.
      */
-    protected function rotateAboutCenter(angle:Number):void 
+    private function rotateAboutCenter(angle:Number):void 
     {            
       // Standard Flex components define rotation wrt the top left corner,
       // but imported SWCs define rotation wrt the center of the UIMovieClip.
@@ -233,6 +221,43 @@ package core {
         graphics.transform.matrix = m;
       }
     }    
+    
+    /** 
+     * Confines the object to the dimensions of its graphical parent.
+     * Bounces off the edges of those dimensions with a certain restitution factor.
+     */
+    private function checkBoundaries():void 
+    {
+      if (graphics.parent == null)
+        return;
+      
+      var c:Vector2 = center;
+      var r:Number = radius;
+      
+      if (c.x - r < 0) 
+      {
+        graphics.x += r - c.x;
+        v.x *= -RESTITUTION;
+      }
+      
+      if (c.x + r > graphics.parent.width) 
+      {
+        graphics.x -= c.x + r - graphics.parent.width;
+        v.x *= -RESTITUTION;
+      }
+      
+      if (c.y - r < 0) 
+      {
+        graphics.y += r - c.y;
+        v.y *= -RESTITUTION;
+      } 
+      
+      if (c.y + r > graphics.parent.height) 
+      {
+        graphics.y -= c.y + r - graphics.parent.height;
+        v.y *= -RESTITUTION;
+      }
+    }
     
   }
 }
