@@ -103,6 +103,12 @@ either expressed or implied, of William Chou.
       /** Maximum length of a level. */
       public static const MAX_LEVEL_LENGTH:Number = 4000;
       
+      /** 
+       * Maximum size time-step. 
+       * Makes sure intermittent spikes don't cause interpenetration and other gameplay artifacts.
+       */
+      private static const MAX_DT:Number = 1.0 / 30;
+      
       /////////////////////////////////////////////////////////////////////////
       // VARIABLES
       /////////////////////////////////////////////////////////////////////////
@@ -113,7 +119,16 @@ either expressed or implied, of William Chou.
       /** The game time when the last frame was drawn. */
       private var lastTime:uint;
       
+      /** 
+       * The visible bitmap buffer which displays the render contents 
+       * of each frame's blitted bitmap graphics. 
+       */
       private var frontBuffer:UIComponent;
+      
+      /** 
+       * The invisible bitmap buffer that accumulates bitmap graphics per frame
+       * before displaying it on the front-buffer. 
+       */
       private var backBuffer:BitmapData;
 
       /** For loading custom levels. */
@@ -123,7 +138,8 @@ either expressed or implied, of William Chou.
       private var fpsCounter:FPS;
       
       /** Initializes system state and begins game. */
-      private function init():void {
+      private function init():void 
+      {
         // Set up level loading mechanism.
         fileLoader = new FileReference();
         fileLoader.addEventListener(Event.SELECT, function():void { fileLoader.load(); });
@@ -137,49 +153,55 @@ either expressed or implied, of William Chou.
         SoundManager.initialize();
         SoundManager.playGameMusic();
         
+        // Per-frame update and draw.
+        addEventListener(Event.ENTER_FRAME, onEnterFrame);
+        
+        // Initialize game (adds some children to display list).
+        game = new Game(this);
+        
         // Set up double-buffering mechanism.
         frontBuffer = new UIComponent();
         addChildAt(frontBuffer, 0);
         backBuffer = new BitmapData(Symptom.WIDTH, Symptom.HEIGHT);
         
-        // Per-frame update and draw.
-        addEventListener(Event.ENTER_FRAME, onEnterFrame);
-        
         // Start a new game.
-        game = new Game(this);
         game.play();
       }
 
       /** The main game loop. */
-      private function onEnterFrame(e:Event):void {
+      private function onEnterFrame(e:Event):void 
+      {
         // Pause/unpause game on space press.
-        currentState = InputState.isKeyDown(Keyboard.SPACE) ? pauseState.name : "";
+        if (InputState.isKeyDown(Keyboard.SPACE) && !InputState.wasKeyDown(Keyboard.SPACE))
+          currentState = (currentState == pauseState.name) ? "" : pauseState.name;
         
-        if (currentState == pauseState.name)
-          return;
+        if (currentState != pauseState.name)
+        {
+          // Calculate dt.
+          var currentTime:uint = flash.utils.getTimer();
+          var dt:Number = Math.min(MAX_DT, Math.abs(currentTime - lastTime) / 1000.0);
+          lastTime = currentTime;
+  
+          // Update game and other important states.
+          game.update(dt);
+          fpsCounter.update(dt);
+          
+          // Render game bitmaps to back buffer.
+          game.render(backBuffer);
+          
+          // Copy back buffer to front buffer and display.
+          frontBuffer.graphics.clear();
+          frontBuffer.graphics.beginBitmapFill(backBuffer);
+          frontBuffer.graphics.drawRect(0, 0, Symptom.WIDTH, Symptom.HEIGHT);
+          frontBuffer.graphics.endFill();
+        }
         
-        // Calculate dt.
-        var currentTime:uint = flash.utils.getTimer();
-        var dt:Number = Math.abs(currentTime - lastTime) / 1000.0;
-        lastTime = currentTime;
-
-        // Update game and other important states.
-        game.update(dt);
         InputState.update();
-        fpsCounter.update(dt);
-        
-        // Draw game.
-        game.render(backBuffer);
-        
-        // Copy back buffer to front buffer and display.
-        frontBuffer.graphics.clear();
-        frontBuffer.graphics.beginBitmapFill(backBuffer);
-        frontBuffer.graphics.drawRect(0, 0, Symptom.WIDTH, Symptom.HEIGHT);
-        frontBuffer.graphics.endFill();
       }
       
       /** Opens the level editor in a pop up. */
-      private function openLevelEditor():void {
+      private function openLevelEditor():void 
+      {
         currentState = pauseState.name;
         
         var editor:LevelEditor = new LevelEditor();
@@ -189,12 +211,16 @@ either expressed or implied, of William Chou.
       }
       
       /** Listener to load level data from a pre-selected file. Should not be called directly. */
-      private function _loadLevelFile(e:Event):void {
+      private function _loadLevelFile(e:Event):void 
+      {
         var buffer:ByteArray = fileLoader.data;
         
-        try {
+        try 
+        {
           var level:XML = XML(buffer.readUTFBytes(buffer.bytesAvailable));
-        } catch (e:Error) {
+        } 
+        catch (e:Error) 
+        {
           Alert.show("Selected file has invalid content!", "Symptom > Load custom level");
           return;
         }

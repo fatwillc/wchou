@@ -13,20 +13,21 @@ package units.wbc
     [Embed(source='assets/units/wbc/guard.png')]
     private var _source:Class;
     
-    public function Guard() {
+    public function Guard() 
+    {
       super();
       
       _graphics = new Image();
       (graphics as Image).source = _source;
       graphics.width = 83.0;
       graphics.height = 94.0;
-      
-      isPinned = true;
-      
       graphics.cacheAsBitmap = true; 
+      
+      isPinned = true;      
     }
     
-    override public function get radius():Number {
+    override public function get radius():Number 
+    {
       return 27;
     }
   }

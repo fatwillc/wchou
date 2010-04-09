@@ -1,4 +1,5 @@
-package core {
+package core 
+{
   import flash.display.Bitmap;
   import flash.display.BitmapData;
   import flash.events.Event;
@@ -12,15 +13,13 @@ package core {
   import mx.effects.easing.Cubic;
   import mx.events.EffectEvent;
   
-  import ui.TilingCanvas;
-  
   import utils.Vector2;
   
   /**
    * A container for all the game logic in Symptom.
    */
-  public class Game {      
-    
+  public class Game 
+  {      
     ///////////////////////////////////////////////////////////////////////////
     // CONSTANTS
     ///////////////////////////////////////////////////////////////////////////
@@ -32,32 +31,31 @@ package core {
     // VARIABLES
     ///////////////////////////////////////////////////////////////////////////
     
-    /** Foreground element, contains game objects as children on display list. */
-    private var foreground:Canvas;
-    
-    /** Background element. Pans slower than the foreground by a factor of BACKGROUND_PAN_FACTOR. */
-    private var background:TilingCanvas;
+    /** Inactive games do not process updates called by application. */
+    private var isActive:Boolean = false;
     
     /** The current level being played. */
     private var currentLevel:Level;
     
-    /** Inactive games do not process updates called by application. */
-    private var isActive:Boolean = false;
+    /** Current distance the level is horizontally displaced/scrolled. */
+    private var levelPosition:Number = 0;
     
+    /** Foreground element, contains game objects as children on display list. */
+    private var foreground:Canvas;
+    
+    /** A dark fadeable mask that is used to transition between levels. */
+    private var levelTransitionMask:UIComponent;
     /** A transition that plays between levels. */
     private var levelTransition:Fade;
-    
-    /** 
-     * Current distance the level is horizontally displaced/scrolled.
-     */
-    private var levelPosition:Number = 0;
     
     ///////////////////////////////////////////////////////////////////////////
     // ASSETS
     ///////////////////////////////////////////////////////////////////////////
     
+    /** Number of assets currently loading. */
     private var resourcesLoading:int = 0;
     
+    /** Background image of the level. */
     private var backgroundImage:Image;
     
     /** 
@@ -66,28 +64,31 @@ package core {
      * @param container - the top level component that will house the game
      * display objects as children on its display list.
      */
-    public function Game(container:UIComponent) {
+    public function Game(container:UIComponent) 
+    {
+      levelTransitionMask = new Canvas();
+      levelTransitionMask.width = Symptom.WIDTH;
+      levelTransitionMask.height = Symptom.HEIGHT;
+      levelTransitionMask.setStyle("backgroundColor", 0x333333);
+      container.addChildAt(levelTransitionMask, 0);
+      
+      levelTransition = new Fade();
+      levelTransition.alphaFrom = 1.0;
+      levelTransition.alphaTo = 0.0;
+      levelTransition.easingFunction = Cubic.easeOut;
+      levelTransition.duration = 1000;
+      
       foreground = new Canvas();
       foreground.height = 400;
       foreground.horizontalScrollPolicy = foreground.verticalScrollPolicy = "off";
-//      container.addChildAt(foreground, 0);
-      
-      background = new TilingCanvas();
-      background.height = 400;
-      background.horizontalScrollPolicy = background.verticalScrollPolicy = "off";
-//      container.addChildAt(background, 0);
-      
-      levelTransition = new Fade();
-      levelTransition.alphaFrom = 0;
-      levelTransition.alphaTo = 1.0;
-      levelTransition.easingFunction = Cubic.easeOut;
-      levelTransition.duration = 1000;
+      container.addChildAt(foreground, 0);
       
       backgroundImage = new Image();
       backgroundImage.addEventListener(Event.COMPLETE, loadComplete);
     }
     
-    public function update(dt:Number):void {
+    public function update(dt:Number):void 
+    {
       foreground.graphics.clear();
       
       if (!isActive)
@@ -123,20 +124,15 @@ package core {
     }
       
     /** Starts a new game to play. */
-    public function play(level:Level = null):void {   
+    public function play(level:Level = null):void 
+    {   
       // Get the level to play.       
-      currentLevel = (level != null) ? level : Level.getLevel(0);
+      currentLevel = (level != null) ? level : Level.getLevel(3);
       
       // Set up foreground.
       foreground.removeAllChildren();
-      foreground.alpha = 0;
       foreground.width = currentLevel.length;
       foreground.x = foreground.y = 0;
-      
-      // Set up background.
-      background.width = foreground.width / BACKGROUND_PAN_FACTOR;
-      background.x = background.y = 0;
-      background.setTileImage(currentLevel.style);
       
       // Load level data.
       for each (var img:Image in currentLevel.images)
@@ -144,34 +140,35 @@ package core {
       for each (var go:GameObject in currentLevel.getAllObjects())
         foreground.addChild(go.graphics);
       
+      // Set up background.
+      levelPosition = 0;
       resourcesLoading += 1;
       backgroundImage.load(currentLevel.style);
-
-      levelTransition.play([foreground, background]);  
     }
     
     /** Ends the game. */
-    public function endGame(isWin:Boolean):void {
+    private function endGame(isWin:Boolean):void 
+    {
       isActive = false;
       
       // If player won and next level exists, advance to it. 
       // Otherwise, reload first level.
       // Execute this logic once the transition is done playing, and then
       // remove the event listener so it doesn't trigger again inadvertently.
-      var fn:Function = function():void { 
+      var fn:Function = function():void 
+      { 
         var next:Level = Level.getLevel(currentLevel.nextLevel);
         
-        if (isWin && next != null) {
+        if (isWin && next != null) 
           play(next); 
-        } else {
+        else
           play();
-        }
         
         levelTransition.removeEventListener(EffectEvent.EFFECT_END, arguments.callee);
-        }
+      }
         
       levelTransition.addEventListener(EffectEvent.EFFECT_END, fn);
-      levelTransition.play([foreground, background], true);
+      levelTransition.play([levelTransitionMask], true);
     }
     
     /** 
@@ -183,6 +180,7 @@ package core {
       
       if (resourcesLoading == 0) {
         isActive = true;
+        levelTransition.play([levelTransitionMask]);
       }
     }
     
@@ -190,17 +188,18 @@ package core {
      * Pans the foreground (and background, accordingly) so that the virus
      * never travels past the left half of the viewable screen.
      */
-    private function scrollScreen():void {
+    private function scrollScreen():void 
+    {
       var epsilon:Number = 10;
       var virusCenter:Vector2 = currentLevel.virusPosition;
       
-      if (virusCenter.x > Symptom.WIDTH/2 && foreground.x > -foreground.width + Symptom.WIDTH + epsilon) {
+      if (virusCenter.x > Symptom.WIDTH/2 && foreground.x > -foreground.width + Symptom.WIDTH + epsilon) 
+      {
         var delta:Number = Math.min(0, Symptom.WIDTH/2 - virusCenter.x - foreground.x);
         
         levelPosition += delta;
         
         foreground.x += delta;
-        background.x += delta * BACKGROUND_PAN_FACTOR;
       }
     }
 

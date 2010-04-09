@@ -77,9 +77,7 @@ package core
     private var _nextLevel:int = -1;
     
     /** The current position of the virus in the level. */
-    public function get virusPosition():Vector2 {
-      return virus.center;
-    }
+    public function get virusPosition():Vector2 { return virus.center; }
     
     ///////////////////////////////////////////////////////////////////////////
     // METHODS
@@ -90,15 +88,21 @@ package core
      * @param level - the XML level data.
      * @pararm levelNumber - the level number corresponding to the XML level.
      */
-    public function Level(level:XML, levelNumber:int = -1) {      
-      try {
+    public function Level(level:XML, levelNumber:int = -1) 
+    {      
+      try 
+      {
         _length = Number(level.@length);
-      } catch (e:Error) {
+      } 
+      catch (e:Error) 
+      {
         throw new Error("Invalid level length.");
       }
       
-      if ("@style" in level) {  
-        switch (String(level.@style)) {
+      if ("@style" in level) 
+      {  
+        switch (String(level.@style)) 
+        {
           case "title": 
             _style = TITLE;
             break;
@@ -108,28 +112,33 @@ package core
         }
       }
       
-      if ("@nextLevel" in level) {
-        try {
+      if ("@nextLevel" in level) 
+      {
+        try 
+        {
           _nextLevel = Number(level.@nextLevel);
-        } catch (e:Error) {
+        } 
+        catch (e:Error) 
+        {
           throw new Error("Invalid next level ID.");
         }
       }
       
       var xml:XML;
       
-      for each (xml in level.EndArea) {
+      for each (xml in level.EndArea) 
+      {
         var end:EndArea = new EndArea();
         end.graphics.x = xml.@x;
         end.graphics.y = xml.@y;
         endAreas.push(end);
       }
       
-      if (endAreas.length == 0) {
+      if (endAreas.length == 0) 
         throw new Error("Map contains no end areas.");
-      }
       
-      for each (xml in level.RBC) {
+      for each (xml in level.RBC) 
+      {
         var rbc:RBC = new RBC();
         rbc.setColors(Color.fromString(xml.@color), Color.fromString(xml.@dna));
         rbc.graphics.rotation = Math.random() * 360;
@@ -141,21 +150,24 @@ package core
         rbcs.push(rbc);
       }
       
-      for each (xml in level.Hunter) {
+      for each (xml in level.Hunter) 
+      {
         var hunter:Hunter = new Hunter();
         hunter.graphics.x = xml.@x;
         hunter.graphics.y = xml.@y;
         wbcs.push(hunter);
       }
       
-      for each (xml in level.Guard) {
+      for each (xml in level.Guard) 
+      {
         var guard:Guard = new Guard();
         guard.graphics.x = xml.@x;
         guard.graphics.y = xml.@y;
         wbcs.push(guard);
       }      
       
-      for each (xml in level.Image) {
+      for each (xml in level.Image) 
+      {
         var img:Image = new Image();
         img.source = ASSET_DIRECTORY + levelNumber + "/" + xml.@source;
         img.x = xml.@x;
@@ -168,7 +180,8 @@ package core
     }
     
     /** Updates the level and contained game objects. */
-    public function update(dt:Number):void {
+    public function update(dt:Number):void 
+    {
       var virusCenter:Vector2    = virus.center;
       var virusDirection:Vector2 = virus.direction;
       var virusSpeed:Number      = virus.v.length();  
@@ -176,8 +189,10 @@ package core
       /////////////////////////////////////////
       // CHECK VICTORY CONDITION
               
-      for each (var end:EndArea in endAreas) {            
-        if (Geometry.intersect(virus, end) != null) {
+      for each (var end:EndArea in endAreas) 
+      {            
+        if (Geometry.intersect(virus, end) != null) 
+        {
           _state = LevelState.WIN;
           return;
         }
@@ -194,8 +209,10 @@ package core
       ///////////////////////////////////////// 
       // WBC ATTRACTION FORCE
       
-      for each (var go:GameObject in allObjects) {
-        if (go is WBC) {
+      for each (var go:GameObject in allObjects) 
+      {
+        if (go is WBC) 
+        {
           if (!virus.isInfecting)
             (go as WBC).hunt(dt, virusCenter);
         }
@@ -204,32 +221,37 @@ package core
       /////////////////////////////////////////
       // PROCESS COLLISIONS
       
-      var k:Number = 10.0;
+      var ks:Number = 25.0;
   
-      for (var i:int = 0; i < allObjects.length; i++) {
+      for (var i:int = 0; i < allObjects.length; i++) 
+      {
         var oi:GameObject = allObjects[i];
         
-        for (var j:int = i+1; j < allObjects.length; j++) {
+        for (var j:int = i+1; j < allObjects.length; j++) 
+        {
           var oj:GameObject = allObjects[j];
           
           var normal:Vector2 = Geometry.intersect(oi, oj);
-          if (normal != null) {
+          if (normal != null) 
+          {
             // Virus-specific collisions.
             // Note: Assumes that virus is the first element in the list of objects.
-            if (oi is Virus) {
-              if (virus.isInfecting) {
+            if (oi is Virus) 
+            {
+              if (virus.isInfecting)
                 break;
-              }
               
-              if (oj is WBC) {
+              if (oj is WBC) 
+              {
                 _state = LevelState.LOSE;
                 return;
               }
               
-               if (oj is RBC && normal.dot(virusDirection) > Geometry.COS_30 && virus.dna == (oj as RBC).color) {
+              if (oj is RBC && normal.dot(virusDirection) > Geometry.COS_30 && virus.dna == (oj as RBC).color) 
+              {
                 virus.infect(oj as RBC);
                 break;
-              } 
+              }
             }
             
             var d:Number = normal.length();
@@ -238,9 +260,9 @@ package core
             var relativeV:Vector2 = oi.v.subtract(oj.v);
             if (relativeV.dot(normal) < 0)
               continue;
-            
-            oi.F.acc(normal, -k * d);
-            oj.F.acc(normal,  k * d);
+              
+            oi.F.acc(normal, -ks * d);
+            oj.F.acc(normal,  ks * d);
           }
         }
       }
@@ -253,9 +275,13 @@ package core
     }
     
     /** Gets all current objects in the level. */
-    public function getAllObjects():Vector.<GameObject> {
+    public function getAllObjects():Vector.<GameObject> 
+    {
       // Push into a single vector; more performant than concat().
       var allObjects:Vector.<GameObject> = new Vector.<GameObject>();
+      
+      for each (var end:EndArea in endAreas) 
+        allObjects.push(end);
       
       allObjects.push(virus);
       
@@ -263,10 +289,8 @@ package core
         allObjects.push(rbc);
         
       for each (var wbc:WBC in wbcs) 
-        allObjects.push(wbc); 
-        
-      for each (var end:EndArea in endAreas) 
-        allObjects.push(end);
+        allObjects.push(wbc);
+         
       
       return allObjects;
     }
@@ -292,8 +316,10 @@ package core
      * @param level - the level number.
      * @return The Level.
      */
-    public static function getLevel(levelNumber:int):Level {
-      switch(levelNumber) {
+    public static function getLevel(levelNumber:int):Level 
+    {
+      switch(levelNumber) 
+      {
         case 0: 
           return new Level(XML(new level0()), levelNumber);
         case 1: 

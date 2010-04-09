@@ -1,13 +1,14 @@
-package units {
-  
+package units 
+{
   import core.GameObject;
   import core.ObjectState;
   import mx.controls.Image;
 
   /** An end/exit area of a level. */
-  public class EndArea extends GameObject  {
-    
-    public function EndArea() {
+  public class EndArea extends GameObject 
+  {
+    public function EndArea() 
+    {
       super();
       
       _graphics = new Image();
@@ -20,7 +21,8 @@ package units {
       state = ObjectState.INACTIVE;
     }
     
-    override public function get radius():Number {
+    override public function get radius():Number 
+    {
       return 0.5 * super.radius;
     }
     

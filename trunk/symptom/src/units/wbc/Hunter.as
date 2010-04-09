@@ -13,13 +13,13 @@ package units.wbc
   public class Hunter extends WBC
   {
     /** Maximum attainable speed of a WBC. */
-    private const MAX_SPEED:Number = 600.0;
+    private const MAX_SPEED:Number = 700.0;
     
     /** Magnitude of virus-hunting force. */
-    private const F_ATTRACTION:Number = 3.5;
+    private const F_ATTRACTION:Number = 30;
     
     /** Rotational force during hunting. */
-    private const F_ROTATION:Number = 50 * Geometry.randomSign();
+    private const F_ROTATION:Number = 20 * Geometry.randomSign();
 
     /** Maximum Euclidean distance at which hunting begins. */
     private const range:Number = 200.0;
@@ -27,7 +27,8 @@ package units.wbc
     [Embed(source='assets/units/wbc/hunter.swf')]
     private var _source:Class;
     
-    public function Hunter() {
+    public function Hunter() 
+    {
       super();
       
       _graphics = new Image();
@@ -36,27 +37,30 @@ package units.wbc
       graphics.height = 51.8;
     }
     
-    override public function update(dt:Number):void {
+    override public function update(dt:Number):void 
+    {
       if (Symptom.DEBUG) {
         (graphics.parent as Sprite).graphics.lineStyle(1, 0x0000ff);
         (graphics.parent as Sprite).graphics.drawCircle(center.x, center.y, range);
       }
     }
     
-    override public function hunt(dt:Number, virusCenter:Vector2):void {
+    override public function hunt(dt:Number, virusCenter:Vector2):void 
+    {
       var center:Vector2 = this.center;
       var v:Vector2 = virusCenter.subtract(center);
       var lengthV:Number = v.length();
       
-      if (lengthV < range) {
+      // If virus is within range, hunt it.
+      if (lengthV < range) 
+      {
         v.normalize();
         F.acc(v, F_ATTRACTION);
         w += dt * F_ROTATION;
       }
       
-      if (v.length() > MAX_SPEED) {
+      if (v.length() > MAX_SPEED)
         v.normalize(MAX_SPEED);
-      }
     }
   }
 }

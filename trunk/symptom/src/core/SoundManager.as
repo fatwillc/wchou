@@ -1,5 +1,5 @@
-package core {
-  
+package core 
+{
   import __AS3__.vec.Vector;
   
   import flash.media.SoundChannel;
@@ -11,8 +11,8 @@ package core {
    * Plays sounds and handles sound assets. 
    * Implemented as a singleton.
    */
-  public class SoundManager {
-    
+  public class SoundManager 
+  {
     ///////////////////////////////////////////////////////
     // EFFECTS
     ///////////////////////////////////////////////////////
@@ -47,7 +47,8 @@ package core {
     ///////////////////////////////////////////////////////
     
     /** Create a new sound manager. */
-    public static function initialize():void  {
+    public static function initialize():void 
+    {
       // Music.
       themeSong = SoundAsset(new theme_song());
  
@@ -61,33 +62,34 @@ package core {
     }
     
     /** Plays game music. */
-    public static function playGameMusic():void {
+    public static function playGameMusic():void 
+    {
       stopMusic();
       
       musicChannel = themeSong.play(0, int.MAX_VALUE);
     }
     
     /** Stops playing of all music. */
-    public static function stopMusic():void {
-      if (musicChannel != null) {
+    public static function stopMusic():void 
+    {
+      if (musicChannel != null)
         musicChannel.stop();
-      }
     }
     
     /** Plays a random infect sound effect. */
-    public static function playRandomInfect():void {
-      if (infectChannel != null) {
+    public static function playRandomInfect():void 
+    {
+      if (infectChannel != null)
         infectChannel.stop();
-      }
       
       infectChannel = infects[int(Math.random() * infects.length)].play();
     }
     
     /** Plays a random launch sound effect. */
-    public static function playRandomLaunch():void {
-      if (launchChannel != null) {
+    public static function playRandomLaunch():void 
+    {
+      if (launchChannel != null)
         launchChannel.stop();
-      }
       
       launchChannel = launchs[int(Math.random() * launchs.length)].play();
     }

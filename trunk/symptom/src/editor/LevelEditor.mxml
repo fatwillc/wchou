@@ -62,7 +62,8 @@ The level editor.
       private var sampleGuard:Guard = new Guard();
 
       /** Initializes sample placeable objects. */
-      private function initPlaceables():void {
+      private function initPlaceables():void 
+      {
         endContainer.addChild(sampleEndArea.graphics);
         sampleEndArea.graphics.addEventListener(MouseEvent.MOUSE_DOWN, function ():void { select(EndArea); });
         sampleEndArea.graphics.buttonMode = sampleEndArea.graphics.useHandCursor = sampleEndArea.graphics.mouseChildren = true;
@@ -81,11 +82,13 @@ The level editor.
       }
 
       /** Creates a new unit under the user's cursor for placement on the level. */
-      private function select(cls:Class):void {
+      private function select(cls:Class):void 
+      {
         var object:GameObject = new cls();
         placedObjects.push(object);
 
-        switch (cls) {
+        switch (cls) 
+        {
           case RBC:
             (object as RBC).setColors(sampleRBC.color, sampleRBC.dna);
             break;
@@ -101,19 +104,22 @@ The level editor.
       }
       
       /** Begins mouse event listening for movement and placement of selected units. */
-      private function addSelectionListeners():void {
+      private function addSelectionListeners():void 
+      {
         addEventListener(MouseEvent.MOUSE_MOVE, onMouseMove);
         addEventListener(MouseEvent.MOUSE_UP, onMouseUp);
       }
       
       /** Ends mouse event listening after placement of a selected unit. */
-      private function removeSelectionListeners():void {
+      private function removeSelectionListeners():void 
+      {
         removeEventListener(MouseEvent.MOUSE_MOVE, onMouseMove);
         removeEventListener(MouseEvent.MOUSE_UP, onMouseUp);
       }
       
       /** Centers the selected image to the mouse and checks if this position is valid. */
-      private function onMouseMove(e:MouseEvent = null):void {
+      private function onMouseMove(e:MouseEvent = null):void 
+      {
         selection.x = container.mouseX - selection.width/2;
         selection.y = container.mouseY - selection.height/2;
         
@@ -122,7 +128,7 @@ The level editor.
         // Check if within screen bounds.
         if (selection.x < 0 || selection.x > container.width - selection.width || 
             selection.y < 0 || selection.y > container.height - selection.height) 
-            {
+        {
           isValidPosition = false;
         }
         
@@ -130,10 +136,12 @@ The level editor.
       }
       
       /** Places selected image in the current mouse position if possible, otherwise nullifies selection. */
-      private function onMouseUp(e:MouseEvent):void {
+      private function onMouseUp(e:MouseEvent):void 
+      {
         removeChild(selection);
         
-        if (isValidPosition) {
+        if (isValidPosition) 
+        {
           selection.alpha = 1;
           selection.filters = null;
           
@@ -151,7 +159,8 @@ The level editor.
       }
       
       /** "Picks up" an already placed Image in the level. */
-      private function pickUp(e:MouseEvent):void {
+      private function pickUp(e:MouseEvent):void 
+      {
         isPickUp = true;
           
         selection = e.currentTarget as Image;
@@ -167,28 +176,38 @@ The level editor.
       }
       
       /** Serializes current level data and units into XML and opens save dialog box. */
-      private function save():void {
+      private function save():void 
+      {
         output =
           <Symptom length={Math.round(level.width)}>
           </Symptom>;
         
-        for each (var object:GameObject in placedObjects) {
+        for each (var object:GameObject in placedObjects) 
+        {
           var xml:XML;
           
           var x:int = object.graphics.x;
           var y:int = object.graphics.y;
           
-          if (object is EndArea) {
+          if (object is EndArea) 
+          {
             xml = <EndArea x={x} y={y} />;
-          } else if (object is RBC) {
+          } 
+          else if (object is RBC) 
+          {
             var rbc:RBC = object as RBC;
-            
             xml = <RBC x={x} y={y} color={Color.toString(rbc.color)} dna={Color.toString(rbc.dna)} />;
-          } else if (object is Guard) {
+          } 
+          else if (object is Guard) 
+          {
             xml = <Guard x={x} y={y} />;
-          } else if (object is Hunter) {
+          } 
+          else if (object is Hunter) 
+          {
             xml = <Hunter x={x} y={y} />;
-          } else {
+          } 
+          else 
+          {
             throw new Error("Unrecognized object on level canvas.");
           }
           
@@ -199,7 +218,8 @@ The level editor.
       }
       
       /** Resets level data and removes all units. */
-      private function reset():void {
+      private function reset():void 
+      {
         Alert.show("Are you sure you want to reset this level?", 
           "Symptom > Level Editor", 
           Alert.YES | Alert.NO, 
@@ -210,15 +230,18 @@ The level editor.
       }
       
       // Listener for reset().
-      private function _reset(e:CloseEvent):void {
-        if (e.detail == Alert.YES) {  
+      private function _reset(e:CloseEvent):void 
+      {
+        if (e.detail == Alert.YES) 
+        {  
           level.height = lengthSlider.value = 600;
           level.removeAllChildren();
         }
       }
       
       /** Exits the level editor. */
-      private function close(e:CloseEvent):void {
+      private function close(e:CloseEvent):void 
+      {
         Alert.show("Are you sure you want to exit the level editor?", 
           "Symptom Level Editor", 
           Alert.YES | Alert.NO, 
@@ -229,10 +252,10 @@ The level editor.
       }
       
       // Listener for close().
-      private function _close(e:CloseEvent):void {
-        if (e.detail == Alert.YES) {
+      private function _close(e:CloseEvent):void 
+      {
+        if (e.detail == Alert.YES)
           PopUpManager.removePopUp(this);         
-        }
       }
     ]]>
   </mx:Script>

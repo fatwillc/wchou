@@ -7,12 +7,20 @@ package ui
   import mx.containers.Canvas;
   import mx.controls.Image;
 
+  /** A canvas with a tiling background. */ 
   public class TilingCanvas extends Canvas
   {
+    /** The canvas's background image. */
     private var image:Image = new Image();
     
+    /** Set to true once image is done loading. */
     private var isLoadComplete:Boolean = false;
     
+    /**
+     * Creates a new TilingCanvas.
+     * 
+     * @param imagePath - path to the background image source.
+     */
     public function TilingCanvas(imagePath:String = null)
     {
       super();
@@ -23,6 +31,7 @@ package ui
         setTileImage(imagePath);
     }
     
+    /** Sets the path to the background image source and loads it. */
     public function setTileImage(imagePath:String):void
     {
       isLoadComplete = false;
@@ -35,7 +44,8 @@ package ui
       invalidateDisplayList();
     }
     
-    override protected function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void {
+    override protected function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void 
+    {
       super.updateDisplayList(unscaledWidth, unscaledHeight);
       
       if (isLoadComplete)  {
