@@ -1,0 +1,21 @@
+/* CSS file */
+
+Button 
+{
+  fillAlphas: 1, 1;
+  fillColors: #ffffff, #ffffff;
+  cornerRadius: 2;
+  borderColor: #aa0000;
+  letterSpacing: 1;
+  fontSize: 8;
+}
+
+TextInput
+{
+  borderThickness: 0;
+  color: #00aa00;
+  textAlign: center;
+  letterSpacing: 1;
+  fontSize: 8;
+  fontWeight: bold;
+}

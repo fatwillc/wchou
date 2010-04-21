@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application 
+  xmlns:mx="http://www.adobe.com/2006/mxml" 
+  xmlns:core="core.*"
+  layout="absolute"
+  width="640"
+  height="480"
+  backgroundColor="0x000000"
+  horizontalScrollPolicy="off" verticalScrollPolicy="off"
+  creationComplete="init();" >
+  
+  <mx:Style source="styles/style.css" />
+  
+  <mx:Script>
+    <![CDATA[
+      import core.Main;
+      
+      private function init():void 
+      {
+        addChild(new Main(width, height));
+      }
+    ]]>
+  </mx:Script>
+  
+</mx:Application>
