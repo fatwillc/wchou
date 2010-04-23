@@ -10,11 +10,13 @@ package core
   import flash.utils.getTimer;
   
   import mx.containers.Canvas;
+  import mx.containers.HBox;
   import mx.controls.Button;
+  import mx.controls.Label;
+  import mx.controls.TextInput;
   import mx.core.UIComponent;
   
   import utils.*;
-  import mx.controls.TextInput;
   
   public class Main extends Canvas
   {
@@ -23,6 +25,8 @@ package core
     ///////////////////////////////////////////////////////////////////////////
     
     private static const defaultNumSimulationObjects:int = 100;
+    
+    private static const restitutionCoefficient:Number = 1.0;
     
     ///////////////////////////////////////////////////////////////////////////
     // RENDERING VARIABLES
@@ -53,12 +57,9 @@ package core
     private var _isRenderBlit:Boolean = false;
     
     /**
-     * Toggles rendering method between blit and display list.
+     * Is collision processing currently enabled?
      */
-    private function toggleRenderMethod(e:MouseEvent):void
-    {
-      isRenderBlit = !isRenderBlit;
-    }
+    private var _isCollisions:Boolean = false;
     
     ///////////////////////////////////////////////////////////////////////////
     // RENDERING COMPONENTS
@@ -109,6 +110,21 @@ package core
      * Sets the number of active simulation objects.
      */
     private var txtNumSimulationObjects:TextInput;
+    
+    /**
+     * Toggles collision processing on and off when clicked.
+     */
+    private var btnToggleCollisions:Button;
+    
+    /**
+     * For displaying current FPS.
+     */
+    private var lblFps:Label;
+
+    /**
+     * Computes and displays current FPS to a Label.
+     */
+    private var fps:FPS;
 
     ///////////////////////////////////////////////////////////////////////////
     // CONSTRUCTOR & INITIALIZATION METHODS
@@ -144,23 +160,36 @@ package core
     
     private function initializeUI():void
     {
-      btnToggleRenderMethod = new Button();
-      btnToggleRenderMethod.label = "DISPLAY LIST";
-      btnToggleRenderMethod.x = 5;
-      btnToggleRenderMethod.y = 5;
-      btnToggleRenderMethod.width = 100;
-      btnToggleRenderMethod.height = 30;   
-      btnToggleRenderMethod.addEventListener(MouseEvent.CLICK, toggleRenderMethod);
-      addChild(btnToggleRenderMethod);
+      var controlPanel:HBox = new HBox();
+      controlPanel.x = 5;
+      controlPanel.y = 5;
+      addChild(controlPanel);
+     
+      lblFps = new Label();
+      lblFps.width = 60;
+      controlPanel.addChild(lblFps);
+      fps = new FPS(lblFps);
       
       txtNumSimulationObjects = new TextInput();
       txtNumSimulationObjects.text = defaultNumSimulationObjects.toString();
-      txtNumSimulationObjects.x = width - 60;
-      txtNumSimulationObjects.y = 10;
-      txtNumSimulationObjects.width = 50;
+      txtNumSimulationObjects.width = 75;
       txtNumSimulationObjects.height = 20;
       txtNumSimulationObjects.addEventListener(Event.CHANGE, updateNumSimulationObjects);
-      addChild(txtNumSimulationObjects);
+      controlPanel.addChild(txtNumSimulationObjects);
+      
+      btnToggleRenderMethod = new Button();
+      btnToggleRenderMethod.label = "DISPLAY LIST";
+      btnToggleRenderMethod.width = 100;
+      btnToggleRenderMethod.height = 20;   
+      btnToggleRenderMethod.addEventListener(MouseEvent.CLICK, toggleRenderMethod);
+      controlPanel.addChild(btnToggleRenderMethod);
+      
+      btnToggleCollisions = new Button();
+      btnToggleCollisions.label = "COLLISIONS OFF";
+      btnToggleCollisions.width = 125;
+      btnToggleCollisions.height = 20;   
+      btnToggleCollisions.addEventListener(MouseEvent.CLICK, toggleCollisions);
+      controlPanel.addChild(btnToggleCollisions);
     }
     
     ///////////////////////////////////////////////////////////////////////////
@@ -171,21 +200,22 @@ package core
     {
       // Calculate dt.
       var currentTime:uint = getTimer();
-      var dt:Number = Math.abs(currentTime - lastTime) / 1000.0;
+      var dT:Number = Math.abs(currentTime - lastTime) / 1000.0;
       lastTime = currentTime;
       
       displayListContainer.graphics.clear();
       
-      // Clear buffer.
+      // Clear draw buffer.
       if (isRenderBlit)
-      {
         blitBackBuffer.fillRect(new Rectangle(0, 0, blitBackBuffer.width, blitBackBuffer.height), 0x333333);
-      }
+      
+      if (_isCollisions)
+        processCollisions(dT);
       
       // Update (and draw) objects.
       for each (var go:GameObject in objects)
       {
-        go.step(dt);
+        go.step(dT);
         
         if (isRenderBlit)
           go.draw(blitBackBuffer);
@@ -199,8 +229,80 @@ package core
         blitFrontBuffer.graphics.drawRect(0, 0, blitBackBuffer.width, blitBackBuffer.height);
         blitFrontBuffer.graphics.endFill();
       }
+      
+      // Update FPS counter.
+      fps.update(dT);
     }
     
+    /**
+     * Toggles rendering method between blit and display list.
+     */
+    private function toggleRenderMethod(e:MouseEvent):void
+    {
+      isRenderBlit = !isRenderBlit;
+    }    
+    
+    /**
+     * Toggles collision processing on and off.
+     */
+    private function toggleCollisions(e:MouseEvent):void
+    {
+      _isCollisions = !_isCollisions;
+      
+      if (_isCollisions)
+        btnToggleCollisions.label = "COLLISIONS ON";
+      else
+        btnToggleCollisions.label = "COLLISIONS OFF";
+    }
+    
+    /**
+     * Processes collisions for all current game objects.
+     */
+    private function processCollisions(dT:Number):void
+    {
+      // TODO: Add multiple sequential iterative resolution.
+      
+      for (var i:int = 0; i < objects.length; i++)
+      {
+        for (var j:int = i + 1; j < objects.length; j++)
+        {
+          resolveCollision(objects[i], objects[j]);
+        }
+      }
+    }
+    
+    /**
+     * Checks for a collision between two objects.
+     * If there is a collision, applies correction impulses to both.
+     * 
+     * @param p The first object.
+     * @param q The second object.
+     */
+    private function resolveCollision(p:GameObject, q:GameObject):Boolean
+    {
+      var n:Vector2 = Geometry.intersect(p, q);
+      
+      if (n == null)
+        return false;
+      
+      var vPQ:Vector2 = p.v.subtract(q.v);
+      
+      // Don't process objects that are already separating.
+      if (vPQ.dot(n) > 0)
+        return false;
+      
+      var j:Number = (-(1 + restitutionCoefficient) * vPQ.dot(n)) / (n.dot(n) * (1 / p.mass + 1 / q.mass));
+      
+      p.v.acc(n, j);
+      q.v.acc(n, -j);
+      
+      return true;
+    }
+    
+    /**
+     * Changes the number of current simulation objects based on 
+     * the contents of TextField "txtNumSimulationObjects".
+     */
     private function updateNumSimulationObjects(e:Event = null):void
     {
       var inputNumber:int = parseInt(txtNumSimulationObjects.text);
