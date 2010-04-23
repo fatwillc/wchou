@@ -1,9 +1,17 @@
 /* CSS file */
 
+Label
+{
+  color: #ffffff;
+  letterSpacing: 3;
+  fontSize: 12;
+}
+
 Button 
 {
-  fillAlphas: 1, 1;
+  fillAlphas: 0.8, 0.8;
   fillColors: #ffffff, #ffffff;
+  highlightAlphas: 0, 0;
   cornerRadius: 2;
   borderColor: #aa0000;
   letterSpacing: 1;
@@ -12,10 +20,11 @@ Button
 
 TextInput
 {
-  borderThickness: 0;
-  color: #00aa00;
+  backgroundColor: #ffffff;
+  backgroundAlpha: 0.8;
+  borderThickness: 1;
+  borderColor: #770000;
+  borderStyle: solid;
   textAlign: center;
-  letterSpacing: 1;
-  fontSize: 8;
-  fontWeight: bold;
+  fontSize: 9;
 }

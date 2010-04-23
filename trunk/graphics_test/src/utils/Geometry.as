@@ -27,14 +27,12 @@ package utils
      * @param centerB Center point of second sphere.
      * @param radiusB Radius of second sphere.
      * 
-     * @return If spheres intersect, return the contact normal scaled by penetration distance. Otherwise, return null.
+     * @return If spheres intersect, return the contact normal (centerB->centerA). Otherwise, return null.
      */
     public static function intersect(a:IBoundingCircle, b:IBoundingCircle):Vector2 {        
-      var d:Vector2 = b.getCenter().subtract(a.getCenter());
+      var d:Vector2 = a.getCenter().subtract(b.getCenter());
       
-      var l:Number = d.length();
-      if (l < a.getRadius() + b.getRadius()) {
-        d.normalize(a.getRadius() + b.getRadius() - l);
+      if (d.length() < a.getRadius() + b.getRadius()) {
         return d;
       }
       
