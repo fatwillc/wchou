@@ -12,9 +12,9 @@ package core
     {
       super();
       
-      p.copy(position);
+      physics.p.copy(position);
       
-      this.v = Vector2.randomUnitCircle(Math.random() * 50);
+      physics.v = Vector2.randomUnitCircle(Math.random() * 50);
       
       state = ObjectState.INACTIVE;
       
