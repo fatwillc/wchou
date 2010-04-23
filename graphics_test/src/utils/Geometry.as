@@ -1,6 +1,6 @@
 package utils
 {
-  import core.IBoundingCircle;
+  import physical.IBoundingCircle;
   
   /** Static constants and utility functions for math & geometry. */
   public class Geometry  {

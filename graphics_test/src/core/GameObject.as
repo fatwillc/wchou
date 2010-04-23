@@ -2,12 +2,13 @@ package core
 {
   import flash.display.BitmapData;
   import flash.display.Sprite;
-  import flash.geom.ColorTransform;
   import flash.geom.Matrix;
   import flash.geom.Point;
   import flash.geom.Rectangle;
   
   import mx.flash.UIMovieClip;
+  
+  import physical.*;
   
   import utils.Geometry;
   import utils.Vector2;
@@ -18,67 +19,14 @@ package core
   public class GameObject implements IBoundingCircle 
   {
     ///////////////////////////////////////////////////////////////////////////
-    // CONSTANTS
-    ///////////////////////////////////////////////////////////////////////////
-    
-    /** 
-     * Coefficient of friction for linear forces. 
-     */
-    private const LINEAR_DRAG:Number = 0.0;
-    
-    /** 
-     * Rotational pseudo-friction coefficient. 
-     */
-    private const ROTATIONAL_DRAG:Number = 0.02;
-    
-    /** 
-     * Coefficient of restitution (amount of bounce after a collision). 
-     */
-    private const RESTITUTION:Number = 0.8;
-      
-    ///////////////////////////////////////////////////////////////////////////
-    // PHYSICAL STATE VARIABLES
+    // VARIABLES
     ///////////////////////////////////////////////////////////////////////////
       
     /** 
      * Current state of this object. 
      */
     public var state:uint = ObjectState.ACTIVE;
-    
-    /** 
-     * If true, will be pinned to current position. 
-     */
-    public var isPinned:Boolean = false;
-    
-    /** 
-     * Current aggregate force vector. 
-     */
-    public var F:Vector2;
-    
-    /** 
-     * Current velocity. 
-     */
-    public var v:Vector2;
-    
-    /** 
-     * Current position. 
-     */
-    public var p:Vector2; 
-    
-    /** 
-     * Current angular velocity in degrees. 
-     */
-    public var w:Number;
-    
-    /** 
-     * Mass of the object. 
-     */
-    public var mass:Number;
-    
-    ///////////////////////////////////////////////////////////////////////////
-    // LIFESPAN VARIABLES
-    ///////////////////////////////////////////////////////////////////////////
-    
+
     /** 
      * The current age of this object. 
      * The object destroys itself once its age exceeds its lifespan.
@@ -95,9 +43,11 @@ package core
     public function get lifespan():Number { return _lifespan; }
     protected var _lifespan:Number = 0;
 
-    ///////////////////////////////////////////////////////////////////////////
-    // GRAPHICS VARIABLES
-    ///////////////////////////////////////////////////////////////////////////
+    /**
+     * Physics state and handler of object.
+     */
+    public function get physics():PhysicsComponent { return _physics; }
+    protected var _physics:PhysicsComponent;
 
     /** 
      * Visual representation of object. 
@@ -127,11 +77,7 @@ package core
     {
       super();
       
-      F = new Vector2();
-      v = new Vector2();
-      p = new Vector2();
-      w = 0;
-      mass = 1;
+      _physics = new PhysicsComponent();
     }
     
     ///////////////////////////////////////////////////////////////////////////
@@ -149,41 +95,26 @@ package core
     /** 
      * Steps position by a specified timestep and updates state. 
      */
-    public function step(dt:Number):void 
+    public function step(dT:Number):void 
     {
       // Subclass force accumulations, etc.
-      update(dt);
+      update(dT);
       
-      // Drag forces.
-      F.x -= v.x * LINEAR_DRAG;
-      F.y -= v.y * LINEAR_DRAG;
-      w *= 1 - ROTATIONAL_DRAG;
+      physics.step(dT);
       
-      // Apply forces.
-      v.acc(F, 1.0/mass);
-
-      // Perform step.
-      var center:Vector2 = getCenter();
-      if (!isPinned) 
-      {
-        p.x += dt * v.x;
-        p.y += dt * v.y;
+      moveGraphicsToP();
+      
+      if (Math.abs(physics.w) > 0)         
+        rotateAboutCenter(physics.w);
         
-        moveGraphicsToP();
-        
-        if (Math.abs(w) > 0)         
-          rotateAboutCenter(w);
-      }
-      
       checkBoundaries();
       
       // Kill object if it exceeded its lifespan.
-      _age += dt;
+      _age += dT;
       if (_lifespan > 0 && _age > _lifespan)
         state = ObjectState.DESTROY;
       
-      // Clear forces.
-      F.zero();
+      physics.clearForces();
     }
     
     public function draw(buffer:BitmapData):void
@@ -195,7 +126,7 @@ package core
       }
       
       var sourceRect:Rectangle = new Rectangle(0, 0, graphics.width, graphics.height);
-      var destPoint:Point = new Point(p.x - graphics.width/2, p.y - graphics.height/2);
+      var destPoint:Point = new Point(physics.p.x - graphics.width/2, physics.p.y - graphics.height/2);
       buffer.copyPixels(cachedGraphicsBitmap, sourceRect, destPoint, cachedGraphicsBitmap, new Point(), true);
     }
 
@@ -231,21 +162,22 @@ package core
       // but imported SWCs define rotation wrt the center of the UIMovieClip.
       if (graphics is UIMovieClip)
       {
-        graphics.x = p.x;
-        graphics.y = p.y;
+        graphics.x = physics.p.x;
+        graphics.y = physics.p.y;
       } 
       else
       {
-        if (w == 0)
+        if (physics.w == 0)
         {
-          graphics.x = p.x - graphics.width / 2;
-          graphics.y = p.y - graphics.height / 2;
+          graphics.x = physics.p.x - graphics.width / 2;
+          graphics.y = physics.p.y - graphics.height / 2;
         }
         else
         {
           // TODO Test this.
           
-          var graphicsOrigin:Vector2 = new Vector2(p.x, p.y);
+          var graphicsOrigin:Vector2 = new Vector2();
+          graphicsOrigin.copy(physics.p);
           
           var u:Vector2 = getDirection();
           var v:Vector2 = new Vector2(u.y, -u.x);
@@ -260,7 +192,7 @@ package core
     
     public function getCenter():Vector2 
     {
-      return p;
+      return physics.p;
     }
     
     public function getRadius():Number
@@ -314,26 +246,26 @@ package core
       
       if (center.x - radius < 0) 
       {
-        p.x += radius - center.x;
-        v.x *= -RESTITUTION;
+        physics.p.x += radius - center.x;
+        physics.v.x *= -physics.restitutionCoefficient;
       }
       
       if (center.x + radius > w) 
       {
-        p.x -= center.x + radius - w;
-        v.x *= -RESTITUTION;
+        physics.p.x -= center.x + radius - w;
+        physics.v.x *= -physics.restitutionCoefficient;
       }
       
       if (center.y - radius < 0) 
       {
-        p.y += radius - center.y;
-        v.y *= -RESTITUTION;
+        physics.p.y += radius - center.y;
+        physics.v.y *= -physics.restitutionCoefficient;
       } 
       
       if (center.y + radius > h) 
       {
-        p.y -= center.y + radius - h;
-        v.y *= -RESTITUTION;
+        physics.p.y -= center.y + radius - h;
+        physics.v.y *= -physics.restitutionCoefficient;
       }
     }
     

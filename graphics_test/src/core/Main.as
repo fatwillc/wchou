@@ -26,8 +26,6 @@ package core
     
     private static const defaultNumSimulationObjects:int = 100;
     
-    private static const restitutionCoefficient:Number = 1.0;
-    
     ///////////////////////////////////////////////////////////////////////////
     // RENDERING VARIABLES
     ///////////////////////////////////////////////////////////////////////////
@@ -285,16 +283,17 @@ package core
       if (n == null)
         return false;
       
-      var vPQ:Vector2 = p.v.subtract(q.v);
+      var vPQ:Vector2 = p.physics.v.subtract(q.physics.v);
       
       // Don't process objects that are already separating.
       if (vPQ.dot(n) > 0)
         return false;
+        
+      var e:Number = p.physics.restitutionCoefficient;
+      var j:Number = (-(1 + e) * vPQ.dot(n)) / (n.dot(n) * (1 / p.physics.mass + 1 / q.physics.mass));
       
-      var j:Number = (-(1 + restitutionCoefficient) * vPQ.dot(n)) / (n.dot(n) * (1 / p.mass + 1 / q.mass));
-      
-      p.v.acc(n, j);
-      q.v.acc(n, -j);
+      p.physics.v.acc(n, j);
+      q.physics.v.acc(n, -j);
       
       return true;
     }
