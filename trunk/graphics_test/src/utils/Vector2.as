@@ -1,6 +1,8 @@
 package utils 
 {
-  /** A 2-dimensional vector representation, because AS3 Point sucks. */
+  /** 
+   * A two-dimensional vector representation, because flash.geom.Point is weak. 
+   */
   public class Vector2 
   {
     public var x:Number;
