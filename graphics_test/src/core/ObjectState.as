@@ -1,6 +1,8 @@
 package core
 {
-  /** Enumeration of possible object states. */
+  /** 
+   * Enumeration of possible object states. 
+   */
   public final class ObjectState
   {
     /**

@@ -12,7 +12,7 @@ package physical
     ///////////////////////////////////////////////////////////////////////////
     
     /** 
-     * Coefficient of restitution for object-wall collisions. 
+     * Amount of "bounce" after a collision. 
      */
     public const restitutionCoefficient:Number = 0.8;
     
@@ -59,6 +59,11 @@ package physical
      * Mass of the object. 
      */
     public var mass:Number;
+    
+    /**
+     * Bounding area of this object (for collisions).
+     */
+    public var boundingCircle:Circle;
 
     ///////////////////////////////////////////////////////////////////////////
     // CONSTRUCTOR
@@ -108,6 +113,26 @@ package physical
     }
     
     /**
+     * Test for intersection between this physics and another.
+     * 
+     * @param other - the other PhysicsCOmponent to check intersection with.
+     * 
+     * @return If intersects, returns contact normal (may not be unit length). 
+     *         Otherwise, returns null.
+     */
+    public function intersects(other:PhysicsComponent):Vector2
+    {
+      var thisToOther:Vector2 = p.subtract(other.p);
+      
+      var overlap:Number = thisToOther.length() - (boundingCircle.radius + other.boundingCircle.radius);
+      
+      if (overlap < 0)
+        return thisToOther;
+      else
+        return null;
+    }
+    
+    /**
      * Clears the force accumulator.
      */
     public function clearForces():void
@@ -116,12 +141,13 @@ package physical
     }
     
     /**
-     * Returns a new PhysicsComponent with the same states.
+     * Clones this PhysicsComponent.
+     * 
+     * @return A new PhysicsComponent with the same states.
      */
     public function clone():PhysicsComponent
     {
       return new PhysicsComponent(isPinned, F, v, p, w, mass);
     }
-
   }
 }

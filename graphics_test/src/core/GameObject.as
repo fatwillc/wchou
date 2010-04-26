@@ -1,7 +1,7 @@
 package core 
 {
   import flash.display.BitmapData;
-  import flash.display.Sprite;
+  import flash.display.DisplayObject;
   import flash.geom.Matrix;
   import flash.geom.Point;
   import flash.geom.Rectangle;
@@ -16,7 +16,7 @@ package core
   /** 
    * The base class for interactive game objects.
    */
-  public class GameObject implements IBoundingCircle 
+  public class GameObject
   {
     ///////////////////////////////////////////////////////////////////////////
     // VARIABLES
@@ -52,8 +52,8 @@ package core
     /** 
      * Visual representation of object. 
      */
-    public function get graphics():Sprite { return _graphics; }
-    protected var _graphics:Sprite;
+    public function get graphics():DisplayObject { return _graphics; }
+    protected var _graphics:DisplayObject;
     
     /**
      * Bitmap data of the graphics object.
@@ -85,15 +85,19 @@ package core
     ///////////////////////////////////////////////////////////////////////////
      
     /** 
-     * Applies custom subclass forces and actions. 
+     * Applies custom subclass forces and actions.
+     * 
+     * @param dT - size of the timestep.
      */
-    public function update(dt:Number):void 
+    public function update(dT:Number):void 
     {
       // To be implemented by subclasses.
     }
     
     /** 
      * Steps position by a specified timestep and updates state. 
+     * 
+     * @param dT - size of the timestep.
      */
     public function step(dT:Number):void 
     {
@@ -102,11 +106,13 @@ package core
       
       physics.step(dT);
       
+      // TODO Modularize this into a GraphicsComponent.
       moveGraphicsToP();
       
+      // TODO Modularize this into a GraphicsComponent.
       if (Math.abs(physics.w) > 0)         
         rotateAboutCenter(physics.w);
-        
+      
       checkBoundaries();
       
       // Kill object if it exceeded its lifespan.
@@ -117,6 +123,11 @@ package core
       physics.clearForces();
     }
     
+    /**
+     * Blits the graphics of this object to a given bitmap buffer.
+     * 
+     * @param buffer - the bitmap buffer to blit to.
+     */
     public function draw(buffer:BitmapData):void
     {
       if (cachedGraphicsBitmap == null)
@@ -188,30 +199,20 @@ package core
           graphics.y = graphicsOrigin.y;
         }
       }
-    }   
-    
-    public function getCenter():Vector2 
-    {
-      return physics.p;
-    }
-    
-    public function getRadius():Number
-    {
-      return Math.min(graphics.width, graphics.height) / 2;
     }
     
     /** 
      * Rotates graphics object about its center. 
      * 
-     * @param angle - The amount to rotate in degrees.
+     * @param theta - The amount to rotate in degrees.
      */
-    private function rotateAboutCenter(angle:Number):void 
+    private function rotateAboutCenter(theta:Number):void 
     {            
       // Standard Flex components define rotation wrt the top left corner,
       // but imported SWCs define rotation wrt the center of the UIMovieClip.
       if (graphics is UIMovieClip)
       {
-        graphics.rotation += angle;
+        graphics.rotation += theta;
       }
       else
       {
@@ -220,7 +221,7 @@ package core
         var m:Matrix = new Matrix();
         
         m.translate(-offset.x, -offset.y);
-        m.rotate(angle * Geometry.DEGREES_TO_RADIANS);
+        m.rotate(theta * Geometry.DEGREES_TO_RADIANS);
         m.translate(offset.x, offset.y);
         
         m.concat(graphics.transform.matrix);
@@ -238,36 +239,36 @@ package core
       if (graphics.parent == null)
         return;
       
-      var center:Vector2 = getCenter();
-      var radius:Number = getRadius();
+      var pX:Number = physics.p.x;
+      var pY:Number = physics.p.y;
+      var radius:Number = physics.boundingCircle.radius;
 
       var w:Number = graphics.parent.width;
       var h:Number = graphics.parent.height;
       
-      if (center.x - radius < 0) 
+      if (pX - radius < 0) 
       {
-        physics.p.x += radius - center.x;
+        physics.p.x += radius - pX;
         physics.v.x *= -physics.restitutionCoefficient;
       }
       
-      if (center.x + radius > w) 
+      if (pX + radius > w) 
       {
-        physics.p.x -= center.x + radius - w;
+        physics.p.x -= pX + radius - w;
         physics.v.x *= -physics.restitutionCoefficient;
       }
       
-      if (center.y - radius < 0) 
+      if (pY - radius < 0) 
       {
-        physics.p.y += radius - center.y;
+        physics.p.y += radius - pY;
         physics.v.y *= -physics.restitutionCoefficient;
       } 
       
-      if (center.y + radius > h) 
+      if (pY + radius > h) 
       {
-        physics.p.y -= center.y + radius - h;
+        physics.p.y -= pY + radius - h;
         physics.v.y *= -physics.restitutionCoefficient;
       }
     }
-    
   }
 }

@@ -278,12 +278,12 @@ package core
      */
     private function resolveCollision(p:GameObject, q:GameObject):Boolean
     {
-      var n:Vector2 = Geometry.intersect(p, q);
+      var n:Vector2 = (p.physics).intersects(q.physics);
       
       if (n == null)
         return false;
       
-      var vPQ:Vector2 = p.physics.v.subtract(q.physics.v);
+      var vPQ:Vector2 = (p.physics.v).subtract(q.physics.v);
       
       // Don't process objects that are already separating.
       if (vPQ.dot(n) > 0)
@@ -340,6 +340,5 @@ package core
     {
       return new Vector2(Math.random() * width, Math.random() * height);
     }
-
   }
 }
