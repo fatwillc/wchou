@@ -31,12 +31,12 @@ package core
     
     private function loadComplete(e:Event):void
     {
-      state = ObjectState.ACTIVE;
-      
       var graphicsImage:Image = graphics.drawable as Image;
       
       var radius:Number = Math.min(graphicsImage.content.width, graphicsImage.content.height) / 2;
       physics.boundingCircle = new Circle(null, radius);
+
+      state = ObjectState.ACTIVE;
     }
   }
 }
