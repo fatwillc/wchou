@@ -16,6 +16,9 @@ package core
   import mx.controls.TextInput;
   import mx.core.UIComponent;
   
+  import physical.CollisionResponse;
+  import physical.PhysicsComponent;
+  
   import utils.*;
   
   public class Main extends Canvas
@@ -122,7 +125,7 @@ package core
     /**
      * Computes and displays current FPS to a Label.
      */
-    private var fps:FPS;
+    private var fpsDisplay:FPS;
 
     ///////////////////////////////////////////////////////////////////////////
     // CONSTRUCTOR & INITIALIZATION METHODS
@@ -166,7 +169,7 @@ package core
       lblFps = new Label();
       lblFps.width = 60;
       controlPanel.addChild(lblFps);
-      fps = new FPS(lblFps);
+      fpsDisplay = new FPS(lblFps);
       
       txtNumSimulationObjects = new TextInput();
       txtNumSimulationObjects.text = defaultNumSimulationObjects.toString();
@@ -229,7 +232,7 @@ package core
       }
       
       // Update FPS counter.
-      fps.update(dT);
+      fpsDisplay.update(dT);
     }
     
     /**
@@ -255,47 +258,53 @@ package core
     
     /**
      * Processes collisions for all current game objects.
+     * Uses Gauss-Seidel velocity-level collision resolution.
+     * Assumes no interpenetration currently exists.
+     * 
+     * @param dT - size of the current timestep.
      */
     private function processCollisions(dT:Number):void
     {
-      // TODO: Add multiple sequential iterative resolution.
+      // Maximum number of collision passes.
+      var maxIters:int = 3;
       
-      for (var i:int = 0; i < objects.length; i++)
+      // Current number of pair-wise resolution passes.
+      var currIters:int = 0;
+      
+      // Have no collisions occured during this pass?
+      var noCollisions:Boolean = false;
+      
+      // For all pairs of objects, check if a collision occurs 
+      // during the next timestep. If so, apply a correction impulse.
+      while (currIters < maxIters && !noCollisions)
       {
-        for (var j:int = i + 1; j < objects.length; j++)
-        {
-          resolveCollision(objects[i], objects[j]);
-        }
-      }
-    }
-    
-    /**
-     * Checks for a collision between two objects.
-     * If there is a collision, applies correction impulses to both.
-     * 
-     * @param p The first object.
-     * @param q The second object.
-     */
-    private function resolveCollision(p:GameObject, q:GameObject):Boolean
-    {
-      var n:Vector2 = (p.physics).intersects(q.physics);
-      
-      if (n == null)
-        return false;
-      
-      var vPQ:Vector2 = (p.physics.v).subtract(q.physics.v);
-      
-      // Don't process objects that are already separating.
-      if (vPQ.dot(n) > 0)
-        return false;
+        noCollisions = true;
         
-      var e:Number = p.physics.restitutionCoefficient;
-      var j:Number = (-(1 + e) * vPQ.dot(n)) / (n.dot(n) * (1 / p.physics.mass + 1 / q.physics.mass));
-      
-      p.physics.v.acc(n, j);
-      q.physics.v.acc(n, -j);
-      
-      return true;
+        for (var i:int = 0; i < objects.length; i++)
+        {
+          var p:GameObject = objects[i];
+          var nextP:PhysicsComponent = p.physics.clone();
+          nextP.step(dT);
+          
+          for (var j:int = i + 1; j < objects.length; j++)
+          {
+            var q:GameObject = objects[j];
+            var nextQ:PhysicsComponent = q.physics.clone();
+            nextQ.step(dT);
+            
+            var response:CollisionResponse = nextP.computeCollision(nextQ);
+            if (response != null)
+            {
+              noCollisions = false;
+              
+              p.physics.v.acc(response.contactNormal,  response.impulse);
+              q.physics.v.acc(response.contactNormal, -response.impulse);
+            }
+          }
+        }
+        
+        currIters += 1;
+      }
     }
     
     /**
@@ -320,10 +329,10 @@ package core
         {
           // Push a new object.
           var ball:Ball = new Ball(randomScreenPosition());
-          ball.graphics.transform.colorTransform = new ColorTransform(0, 0, 0, 1, Math.random() * 255, Math.random() * 255, Math.random() * 255);
+          ball.graphics.drawable.transform.colorTransform = new ColorTransform(0, 0, 0, 1, Math.random() * 255, Math.random() * 255, Math.random() * 255);
           
           objects.push(ball);
-          displayListContainer.addChild(ball.graphics);
+          displayListContainer.addChild(ball.graphics.drawable);
         }
         else
         {

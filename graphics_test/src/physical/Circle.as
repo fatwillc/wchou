@@ -6,13 +6,21 @@ package physical
    * A simple circle with a center point and fixed radius.
    */
   public class Circle
-  {    
+  { 
+    /** 
+     * The center of the circle.
+     */   
     public var center:Vector2;
-    public var radius:Number;
     
+    /**
+     * The circle's radius.
+     */
+    public var radius:Number;
+
     public function Circle(center:Vector2, radius:Number)
     {
       this.radius = radius;
+      
       this.center = center;
     }
   }
