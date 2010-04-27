@@ -18,6 +18,7 @@ package core
   
   import physical.CollisionResponse;
   import physical.PhysicsComponent;
+  import physical.Quadtree;
   
   import utils.*;
   
@@ -57,11 +58,6 @@ package core
     }
     private var _isRenderBlit:Boolean = false;
     
-    /**
-     * Is collision processing currently enabled?
-     */
-    private var _isCollisions:Boolean = false;
-    
     ///////////////////////////////////////////////////////////////////////////
     // RENDERING COMPONENTS
     ///////////////////////////////////////////////////////////////////////////
@@ -97,6 +93,16 @@ package core
      * The game time when the last frame was drawn.
      */
     private var lastTime:uint;
+    
+    /**
+     * Is collision processing currently enabled?
+     */
+    private var isCollisions:Boolean = false;
+    
+    /**
+     * Spacial subdivision and collision acceleration structure.
+     */
+    private var quadTree:Quadtree;
 
     ///////////////////////////////////////////////////////////////////////////
     // UI COMPONENTS
@@ -154,7 +160,7 @@ package core
       objects = new Vector.<GameObject>();
       
       updateNumSimulationObjects();
-      
+     
       // Start simulation.
       addEventListener(Event.ENTER_FRAME, onEnterFrame);
     }
@@ -196,7 +202,7 @@ package core
     ///////////////////////////////////////////////////////////////////////////
     // METHODS
     ///////////////////////////////////////////////////////////////////////////
-    
+
     private function onEnterFrame(e:Event):void
     {
       // Calculate dt.
@@ -210,7 +216,12 @@ package core
       if (isRenderBlit)
         blitBackBuffer.fillRect(new Rectangle(0, 0, blitBackBuffer.width, blitBackBuffer.height), 0x333333);
       
-      if (_isCollisions)
+      rebuildQuadTree();
+      
+      if (true) // TODO Implement visualization switch.
+        quadTree.visualize(displayListContainer);
+      
+      if (isCollisions)
         processCollisions(dT);
       
       // Update (and draw) objects.
@@ -220,7 +231,7 @@ package core
         
         if (isRenderBlit)
           go.draw(blitBackBuffer);
-      }
+      }  
       
       // Blit to front buffer.
       if (isRenderBlit)
@@ -248,9 +259,9 @@ package core
      */
     private function toggleCollisions(e:MouseEvent):void
     {
-      _isCollisions = !_isCollisions;
+      isCollisions = !isCollisions;
       
-      if (_isCollisions)
+      if (isCollisions)
         btnToggleCollisions.label = "COLLISIONS ON";
       else
         btnToggleCollisions.label = "COLLISIONS OFF";
@@ -337,8 +348,22 @@ package core
         else
         {
           // Pop an object.
-          displayListContainer.removeChild(objects.pop().graphics);
+          displayListContainer.removeChild(objects.pop().graphics.drawable);
         }
+      }
+    }
+    
+    /**
+     * Completely rebuilds the quadtree.
+     */
+    private function rebuildQuadTree():void
+    {
+      quadTree = new Quadtree(new Rectangle(0, 0, width, height));
+
+      for each (var go:GameObject in objects)
+      {
+        if (go.state == ObjectState.ACTIVE)
+          quadTree.addObject(go);
       }
     }
     

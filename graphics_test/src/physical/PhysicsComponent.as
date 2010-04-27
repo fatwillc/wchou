@@ -90,6 +90,8 @@ package physical
       
       this.mass = mass;
       
+      if (boundingCircle == null)
+        boundingCircle = new Circle(null, 0);
       this.boundingCircle = boundingCircle;
     }
     
