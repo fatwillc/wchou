@@ -62,6 +62,7 @@ package physical
     
     /**
      * Bounding area of this object (for collisions).
+     * Must be set manually for collision tests.
      */
     public var boundingCircle:Circle;
 
@@ -69,7 +70,7 @@ package physical
     // CONSTRUCTOR
     ///////////////////////////////////////////////////////////////////////////  
     
-    public function PhysicsComponent(isPinned:Boolean = false, F:Vector2 = null, v:Vector2 = null, p:Vector2 = null, w:Number = 0, mass:Number = 1)
+    public function PhysicsComponent(isPinned:Boolean = false, F:Vector2 = null, v:Vector2 = null, p:Vector2 = null, w:Number = 0, mass:Number = 1, boundingCircle:Circle = null)
     {
       this.isPinned = isPinned;
       
@@ -88,6 +89,8 @@ package physical
       this.w = w;
       
       this.mass = mass;
+      
+      this.boundingCircle = boundingCircle;
     }
     
     ///////////////////////////////////////////////////////////////////////////
@@ -110,18 +113,24 @@ package physical
         p.x += dT * v.x;
         p.y += dT * v.y;
       }
+      
+      // Clear force accumulator.
+      F.zero();
     }
     
     /**
      * Test for intersection between this physics and another.
      * 
-     * @param other - the other PhysicsCOmponent to check intersection with.
+     * @param other - the other PhysicsComponent.
      * 
      * @return If intersects, returns contact normal (may not be unit length). 
      *         Otherwise, returns null.
      */
-    public function intersects(other:PhysicsComponent):Vector2
+    private function intersects(other:PhysicsComponent):Vector2
     {
+      if (boundingCircle == null || other.boundingCircle == null)
+        return null;
+      
       var thisToOther:Vector2 = p.subtract(other.p);
       
       var overlap:Number = thisToOther.length() - (boundingCircle.radius + other.boundingCircle.radius);
@@ -133,11 +142,30 @@ package physical
     }
     
     /**
-     * Clears the force accumulator.
+     * Checks for a collision between two PhysicsComponents.
+     * If there is a collision, returns collision resolution response.
+     * 
+     * @param other - the other PhysicsComponent.
+     * 
+     * @return The appropriate collision response. An impulse of '+j' should
+     *         be applied to this component and a '-j' for the other.
      */
-    public function clearForces():void
+    public function computeCollision(other:PhysicsComponent):CollisionResponse
     {
-      F.zero();
+      var n:Vector2 = this.intersects(other);
+      
+      if (n == null)
+        return null;
+      
+      var vPQ:Vector2 = v.subtract(other.v);
+      
+      // Don't process objects that are already separating.
+      if (vPQ.dot(n) > 0)
+        return null;
+      
+      var j:Number = (-(1 + restitutionCoefficient) * vPQ.dot(n)) / (n.dot(n) * (1 / mass + 1 / other.mass));
+      
+      return new CollisionResponse(j, n);
     }
     
     /**
@@ -147,7 +175,7 @@ package physical
      */
     public function clone():PhysicsComponent
     {
-      return new PhysicsComponent(isPinned, F, v, p, w, mass);
+      return new PhysicsComponent(isPinned, F, v, p, w, mass, boundingCircle);
     }
   }
 }

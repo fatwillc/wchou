@@ -2,6 +2,8 @@ package core
 {
   import flash.events.Event;
   
+  import graphical.GraphicsComponent;
+  
   import mx.controls.Image;
   
   import physical.Circle;
@@ -17,9 +19,11 @@ package core
       // Wait for graphics load to complete before activating.
       state = ObjectState.INACTIVE;
       
-      _graphics = new Image();
-      (graphics as Image).addEventListener(Event.COMPLETE, loadComplete);
-      (graphics as Image).load("./assets/ball.swf");
+      var image:Image = new Image();
+      image.addEventListener(Event.COMPLETE, loadComplete);
+      image.load("./assets/ball.swf");
+      
+      graphics.drawable = image;
 
       physics.p.copy(position);
       physics.v = Vector2.randomUnitCircle(Math.random() * 50);
@@ -29,7 +33,9 @@ package core
     {
       state = ObjectState.ACTIVE;
       
-      var radius:Number = Math.min((graphics as Image).content.width, (graphics as Image).content.height) / 2;
+      var graphicsImage:Image = graphics.drawable as Image;
+      
+      var radius:Number = Math.min(graphicsImage.content.width, graphicsImage.content.height) / 2;
       physics.boundingCircle = new Circle(null, radius);
     }
   }
