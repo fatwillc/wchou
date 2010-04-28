@@ -32,6 +32,11 @@ package core
     ///////////////////////////////////////////////////////////////////////////
     
     /**
+     * Provides interface to actively modify simulation variables.
+     */
+    private var controlPanel:ControlPanel;    
+    
+    /**
      * The visible bitmap buffer which displays the render contents of each frame's blitted bitmap graphics.
      * Used for rendering via blitting.
      */
@@ -62,7 +67,21 @@ package core
      * The game time when the last frame was drawn.
      */
     private var lastTime:uint;
-     
+    
+    /**
+     * Spatial subdivision and collision acceleration structure.
+     */
+    private var quadtree:Quadtree;
+    
+    /**
+     * Computes and displays current FPS to a Label.
+     */
+    private var fpsDisplay:FPS;
+    
+    ///////////////////////////////////////////////////////////////////////////
+    // SIMULATION SWITCHES
+    ///////////////////////////////////////////////////////////////////////////
+    
     /**
      * If true, renders game objects via blitting. 
      * Otherwise renders via Flash display list.
@@ -78,21 +97,6 @@ package core
      * Is broad-phase processing currently enabled?
      */
     private var isBroadPhase:Boolean = false;
-    
-    /**
-     * Spatial subdivision and collision acceleration structure.
-     */
-    private var quadtree:Quadtree;
-    
-    /**
-     * Computes and displays current FPS to a Label.
-     */
-    private var fpsDisplay:FPS;    
-
-    /**
-     * Provides interface to actively modify simulation variables.
-     */
-    private var controlPanel:ControlPanel;
 
     ///////////////////////////////////////////////////////////////////////////
     // CONSTRUCTOR & INITIALIZATION METHODS
@@ -163,7 +167,6 @@ package core
       var dT:Number = Math.abs(currentTime - lastTime) / 1000.0;
       lastTime = currentTime;
       
-      // Clear any drawn shapes.
       graphics.clear();
       
       // Clear draw buffer.
@@ -179,7 +182,6 @@ package core
       if (isCollisions)
         processCollisions(dT);
       
-      // Update (and draw) objects.
       for each (var go:GameObject in objects)
       {
         go.step(dT);
@@ -197,7 +199,6 @@ package core
         blitFrontBuffer.graphics.endFill();
       }
       
-      // Update FPS counter.
       fpsDisplay.update(dT);
     }
     
