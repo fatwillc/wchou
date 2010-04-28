@@ -37,11 +37,14 @@ package core
     protected var _lifespan:Number = 0;
 
     /**
-     * Physics state and handler of object.
+     * Handles physics and physical state of object.
      */
     public function get physics():PhysicsComponent { return _physics; }
     protected var _physics:PhysicsComponent;
     
+    /**
+     * Handles graphics and rendering of object.
+     */
     public function get graphics():GraphicsComponent { return _graphics; }
     protected var _graphics:GraphicsComponent;
 

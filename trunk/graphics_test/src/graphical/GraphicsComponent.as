@@ -138,7 +138,7 @@ package graphical
         var m:Matrix = new Matrix();
         
         m.translate(-offset.x, -offset.y);
-        m.rotate(theta * Geometry.DEGREES_TO_RADIANS);
+        m.rotate(theta * Geometry.degreesToRadians);
         m.translate(offset.x, offset.y);
         
         m.concat(drawable.transform.matrix);
@@ -152,7 +152,7 @@ package graphical
      */
     public function getDirection():Vector2
     {
-      var currentRotation:Number = drawable.rotation * Geometry.DEGREES_TO_RADIANS;
+      var currentRotation:Number = drawable.rotation * Geometry.degreesToRadians;
       
       var dir:Vector2 = new Vector2();
       dir.x = Math.sin(currentRotation);

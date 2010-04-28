@@ -48,7 +48,7 @@ package utils
       numberAggregate    += 1;
       
       if (numberAggregate > displayInterval) {
-        label.text = formatter.format(aggregateFramerate / numberAggregate).toString();
+        label.text = "FPS: " + formatter.format(aggregateFramerate / numberAggregate).toString();
         
         aggregateFramerate = numberAggregate = 0;
       }

@@ -1,8 +1,7 @@
 package core
 {
   import flash.events.Event;
-  
-  import graphical.GraphicsComponent;
+  import flash.geom.ColorTransform;
   
   import mx.controls.Image;
   
@@ -11,7 +10,12 @@ package core
   import utils.Vector2;
   
   public class Ball extends GameObject
-  {    
+  {
+    /**
+     * Creates a Ball at the given position with a random color.
+     * 
+     * @param position - the location to place the ball.
+     */
     public function Ball(position:Vector2)
     {
       super();
@@ -20,6 +24,7 @@ package core
       state = ObjectState.INACTIVE;
       
       var image:Image = new Image();
+      image.transform.colorTransform = new ColorTransform(0, 0, 0, 1, Math.random() * 255, Math.random() * 255, Math.random() * 255);
       image.addEventListener(Event.COMPLETE, loadComplete);
       image.load("./assets/ball.swf");
       

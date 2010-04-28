@@ -10,7 +10,7 @@
   frameRate="60"
   creationComplete="init();" >
   
-  <mx:Style source="styles/style.css" />
+  <mx:Style source="ui/style.css" />
   
   <mx:Script>
     <![CDATA[
