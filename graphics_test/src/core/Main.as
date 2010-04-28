@@ -5,20 +5,17 @@ package core
   import flash.display.BitmapData;
   import flash.events.Event;
   import flash.events.MouseEvent;
-  import flash.geom.ColorTransform;
   import flash.geom.Rectangle;
   import flash.utils.getTimer;
   
   import mx.containers.Canvas;
-  import mx.containers.HBox;
-  import mx.controls.Button;
-  import mx.controls.Label;
-  import mx.controls.TextInput;
   import mx.core.UIComponent;
   
   import physical.CollisionResponse;
   import physical.PhysicsComponent;
-  import physical.Quadtree;
+  import physical.quadtree.*;
+  
+  import ui.ControlPanel;
   
   import utils.*;
   
@@ -31,35 +28,7 @@ package core
     private static const defaultNumSimulationObjects:int = 100;
     
     ///////////////////////////////////////////////////////////////////////////
-    // RENDERING VARIABLES
-    ///////////////////////////////////////////////////////////////////////////
-    
-    /**
-     * If true, renders game objects via blitting. 
-     * Otherwise renders via Flash display list.
-     */
-    public function get isRenderBlit():Boolean { return _isRenderBlit; }
-    public function set isRenderBlit(value:Boolean):void 
-    {
-      if (value)
-      {
-        btnToggleRenderMethod.label = "BLIT";
-        removeChild(displayListContainer);
-        addChildAt(blitFrontBuffer, 0);
-      }
-      else
-      {
-        btnToggleRenderMethod.label = "DISPLAY LIST"
-        removeChild(blitFrontBuffer);
-        addChildAt(displayListContainer, 0);
-      }
-      
-      _isRenderBlit = value;
-    }
-    private var _isRenderBlit:Boolean = false;
-    
-    ///////////////////////////////////////////////////////////////////////////
-    // RENDERING COMPONENTS
+    // COMPONENTS
     ///////////////////////////////////////////////////////////////////////////
     
     /**
@@ -81,7 +50,7 @@ package core
     private var displayListContainer:Canvas;
     
     ///////////////////////////////////////////////////////////////////////////
-    // SIMULATION VARIABLES
+    // VARIABLES
     ///////////////////////////////////////////////////////////////////////////
     
     /** 
@@ -93,6 +62,12 @@ package core
      * The game time when the last frame was drawn.
      */
     private var lastTime:uint;
+     
+    /**
+     * If true, renders game objects via blitting. 
+     * Otherwise renders via Flash display list.
+     */
+    private var isRenderBlit:Boolean = false;
     
     /**
      * Is collision processing currently enabled?
@@ -100,38 +75,24 @@ package core
     private var isCollisions:Boolean = false;
     
     /**
-     * Spacial subdivision and collision acceleration structure.
+     * Is broad-phase processing currently enabled?
      */
-    private var quadTree:Quadtree;
-
-    ///////////////////////////////////////////////////////////////////////////
-    // UI COMPONENTS
-    ///////////////////////////////////////////////////////////////////////////
+    private var isBroadPhase:Boolean = false;
     
     /**
-     * Toggles rendering method when clicked.
+     * Spatial subdivision and collision acceleration structure.
      */
-    private var btnToggleRenderMethod:Button;
+    private var quadtree:Quadtree;
     
-    /**
-     * Sets the number of active simulation objects.
-     */
-    private var txtNumSimulationObjects:TextInput;
-    
-    /**
-     * Toggles collision processing on and off when clicked.
-     */
-    private var btnToggleCollisions:Button;
-    
-    /**
-     * For displaying current FPS.
-     */
-    private var lblFps:Label;
-
     /**
      * Computes and displays current FPS to a Label.
      */
-    private var fpsDisplay:FPS;
+    private var fpsDisplay:FPS;    
+
+    /**
+     * Provides interface to actively modify simulation variables.
+     */
+    private var controlPanel:ControlPanel;
 
     ///////////////////////////////////////////////////////////////////////////
     // CONSTRUCTOR & INITIALIZATION METHODS
@@ -144,7 +105,20 @@ package core
       this.width = width;
       this.height = height;
       
-      // Set up display mechanisms.
+      initializeUI();
+
+      initializeDisplays();
+      
+      // Set up simulation objects.
+      objects = new Vector.<GameObject>();
+      updateNumSimulationObjects();
+      
+      // Start simulation.
+      addEventListener(Event.ENTER_FRAME, onEnterFrame);
+    }
+    
+    private function initializeDisplays():void
+    {
       blitFrontBuffer = new UIComponent();
       blitBackBuffer = new BitmapData(width, height);
       displayListContainer = new Canvas();
@@ -153,50 +127,25 @@ package core
       displayListContainer.horizontalScrollPolicy = displayListContainer.verticalScrollPolicy = "off";
       
       // Default display mechanism: display lists.
-      addChild(displayListContainer);
-
-      initializeUI();
-      
-      objects = new Vector.<GameObject>();
-      
-      updateNumSimulationObjects();
-     
-      // Start simulation.
-      addEventListener(Event.ENTER_FRAME, onEnterFrame);
+      addChild(displayListContainer);      
     }
     
     private function initializeUI():void
     {
-      var controlPanel:HBox = new HBox();
-      controlPanel.x = 5;
-      controlPanel.y = 5;
+      controlPanel = new ControlPanel();
+      controlPanel.x = controlPanel.y = 5;
       addChild(controlPanel);
-     
-      lblFps = new Label();
-      lblFps.width = 60;
-      controlPanel.addChild(lblFps);
-      fpsDisplay = new FPS(lblFps);
       
-      txtNumSimulationObjects = new TextInput();
-      txtNumSimulationObjects.text = defaultNumSimulationObjects.toString();
-      txtNumSimulationObjects.width = 75;
-      txtNumSimulationObjects.height = 20;
-      txtNumSimulationObjects.addEventListener(Event.CHANGE, updateNumSimulationObjects);
-      controlPanel.addChild(txtNumSimulationObjects);
+      controlPanel.txtNumSimulationObjects.text = defaultNumSimulationObjects.toString();
+      controlPanel.txtNumSimulationObjects.addEventListener(Event.CHANGE, updateNumSimulationObjects);
       
-      btnToggleRenderMethod = new Button();
-      btnToggleRenderMethod.label = "DISPLAY LIST";
-      btnToggleRenderMethod.width = 100;
-      btnToggleRenderMethod.height = 20;   
-      btnToggleRenderMethod.addEventListener(MouseEvent.CLICK, toggleRenderMethod);
-      controlPanel.addChild(btnToggleRenderMethod);
+      controlPanel.btnToggleRenderMethod.addEventListener(MouseEvent.CLICK, toggleRenderMethod);
       
-      btnToggleCollisions = new Button();
-      btnToggleCollisions.label = "COLLISIONS OFF";
-      btnToggleCollisions.width = 125;
-      btnToggleCollisions.height = 20;   
-      btnToggleCollisions.addEventListener(MouseEvent.CLICK, toggleCollisions);
-      controlPanel.addChild(btnToggleCollisions);
+      controlPanel.btnToggleCollisions.addEventListener(MouseEvent.CLICK, toggleCollisions);
+      
+      controlPanel.btnToggleBroadPhase.addEventListener(MouseEvent.CLICK, toggleBroadPhase);
+      
+      fpsDisplay = new FPS(controlPanel.lblFps);
     }
     
     ///////////////////////////////////////////////////////////////////////////
@@ -205,21 +154,27 @@ package core
 
     private function onEnterFrame(e:Event):void
     {
+      // TODO Make this init check prettier.
+       if (!controlPanel.initialized)
+        return;
+      
       // Calculate dt.
       var currentTime:uint = getTimer();
       var dT:Number = Math.abs(currentTime - lastTime) / 1000.0;
       lastTime = currentTime;
       
-      displayListContainer.graphics.clear();
+      // Clear any drawn shapes.
+      graphics.clear();
       
       // Clear draw buffer.
       if (isRenderBlit)
         blitBackBuffer.fillRect(new Rectangle(0, 0, blitBackBuffer.width, blitBackBuffer.height), 0x333333);
-      
-      rebuildQuadTree();
-      
-      if (true) // TODO Implement visualization switch.
-        quadTree.visualize(displayListContainer);
+
+      if (isBroadPhase) 
+      {
+        quadtree = new Quadtree(new Rectangle(0, 0, width, height), objects);
+        quadtree.visualize(this);
+      }
       
       if (isCollisions)
         processCollisions(dT);
@@ -252,7 +207,20 @@ package core
     private function toggleRenderMethod(e:MouseEvent):void
     {
       isRenderBlit = !isRenderBlit;
-    }    
+      
+      if (isRenderBlit)
+      {
+        controlPanel.btnToggleRenderMethod.label = "blit";
+        removeChild(displayListContainer);
+        addChildAt(blitFrontBuffer, 0);
+      }
+      else
+      {
+        controlPanel.btnToggleRenderMethod.label = "display list"
+        removeChild(blitFrontBuffer);
+        addChildAt(displayListContainer, 0);
+      }
+    }
     
     /**
      * Toggles collision processing on and off.
@@ -262,9 +230,34 @@ package core
       isCollisions = !isCollisions;
       
       if (isCollisions)
-        btnToggleCollisions.label = "COLLISIONS ON";
+      {
+        controlPanel.btnToggleBroadPhase.enabled = true;
+        controlPanel.btnToggleCollisions.label = "collisions on";
+      }
       else
-        btnToggleCollisions.label = "COLLISIONS OFF";
+      {
+        controlPanel.btnToggleBroadPhase.enabled = false;
+        controlPanel.btnToggleCollisions.label = "collisions off";
+      }
+    }
+    
+    /**
+     * Toggles broad-phase collision detection.
+     */
+    private function toggleBroadPhase(e:MouseEvent):void
+    {
+      isBroadPhase = !isBroadPhase;
+      
+      if (isBroadPhase)
+      {
+        controlPanel.btnToggleBroadPhase.label = "quadtree";
+        controlPanel.boxQuadtreeLeafLoad.visible = controlPanel.boxQuadtreeLeafLoad.includeInLayout = true;        
+      }
+      else
+      {
+        controlPanel.btnToggleBroadPhase.label = "broad-phase off";
+        controlPanel.boxQuadtreeLeafLoad.visible = controlPanel.boxQuadtreeLeafLoad.includeInLayout = false;        
+      }
     }
     
     /**
@@ -285,31 +278,64 @@ package core
       // Have no collisions occured during this pass?
       var noCollisions:Boolean = false;
       
-      // For all pairs of objects, check if a collision occurs 
-      // during the next timestep. If so, apply a correction impulse.
       while (currIters < maxIters && !noCollisions)
       {
         noCollisions = true;
         
-        for (var i:int = 0; i < objects.length; i++)
+        ///////////////////////////////////////////////////
+        // Pair-wise collisions
+        if (!isBroadPhase)
         {
-          var p:GameObject = objects[i];
-          var nextP:PhysicsComponent = p.physics.clone();
-          nextP.step(dT);
-          
-          for (var j:int = i + 1; j < objects.length; j++)
+          for (var i:int = 0; i < objects.length; i++)
           {
-            var q:GameObject = objects[j];
-            var nextQ:PhysicsComponent = q.physics.clone();
-            nextQ.step(dT);
+            var p:GameObject = objects[i];
+            var nextP:PhysicsComponent = p.physics.clone();
+            nextP.step(dT);
             
-            var response:CollisionResponse = nextP.computeCollision(nextQ);
-            if (response != null)
+            for (var j:int = i + 1; j < objects.length; j++)
             {
-              noCollisions = false;
+              var q:GameObject = objects[j];
+              var nextQ:PhysicsComponent = q.physics.clone();
+              nextQ.step(dT);
               
-              p.physics.v.acc(response.contactNormal,  response.impulse);
-              q.physics.v.acc(response.contactNormal, -response.impulse);
+              var response:CollisionResponse = nextP.computeCollision(nextQ);
+              if (response != null)
+              {
+                noCollisions = false;
+                
+                p.physics.v.acc(response.contactNormal,  response.impulse);
+                q.physics.v.acc(response.contactNormal, -response.impulse);
+              }
+            }
+          }
+        }
+        ///////////////////////////////////////////////////
+        // Quadtree collisions
+        else
+        {
+          for each (var leaf:QuadtreeNode in quadtree.leaves)
+          {
+            for (var i:int = 0; i < leaf.containedObjects.length; i++)
+            {
+              var p:GameObject = leaf.containedObjects[i];
+              var nextP:PhysicsComponent = p.physics.clone();
+              nextP.step(dT);    
+              
+              for (var j:int = i + 1; j < leaf.containedObjects.length; j++)
+              {
+                var q:GameObject = leaf.containedObjects[j];
+                var nextQ:PhysicsComponent = q.physics.clone();
+                nextQ.step(dT);
+                
+                var response:CollisionResponse = nextP.computeCollision(nextQ);
+                if (response != null)
+                {
+                  noCollisions = false;
+                  
+                  p.physics.v.acc(response.contactNormal,  response.impulse);
+                  q.physics.v.acc(response.contactNormal, -response.impulse);
+                }
+              }
             }
           }
         }
@@ -324,7 +350,7 @@ package core
      */
     private function updateNumSimulationObjects(e:Event = null):void
     {
-      var inputNumber:int = parseInt(txtNumSimulationObjects.text);
+      var inputNumber:int = parseInt(controlPanel.txtNumSimulationObjects.text);
       
       if (isNaN(inputNumber))
         return;
@@ -340,8 +366,7 @@ package core
         {
           // Push a new object.
           var ball:Ball = new Ball(randomScreenPosition());
-          ball.graphics.drawable.transform.colorTransform = new ColorTransform(0, 0, 0, 1, Math.random() * 255, Math.random() * 255, Math.random() * 255);
-          
+
           objects.push(ball);
           displayListContainer.addChild(ball.graphics.drawable);
         }
@@ -352,21 +377,7 @@ package core
         }
       }
     }
-    
-    /**
-     * Completely rebuilds the quadtree.
-     */
-    private function rebuildQuadTree():void
-    {
-      quadTree = new Quadtree(new Rectangle(0, 0, width, height));
 
-      for each (var go:GameObject in objects)
-      {
-        if (go.state == ObjectState.ACTIVE)
-          quadTree.addObject(go);
-      }
-    }
-    
     /**
      * Gets a random position on the viewable screen.
      */

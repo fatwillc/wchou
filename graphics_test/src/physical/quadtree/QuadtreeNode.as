@@ -1,4 +1,4 @@
-package physical
+package physical.quadtree
 {
   import __AS3__.vec.Vector;
   
@@ -12,22 +12,8 @@ package physical
   /**
    * A quadtree that contains game objects in leaf nodes.
    */
-  public class Quadtree
+  public class QuadtreeNode
   {
-    ///////////////////////////////////////////////////////////////////////////
-    // CONSTANTS
-    ///////////////////////////////////////////////////////////////////////////
-    
-    /**
-     * Maximum load per leaf.
-     */
-    public static const maxChildrenPerLeaf:int = 10;
-    
-    /**
-     * Maximum depth (height) of the quadtree.
-     */
-    public static const maxDepth:int = 4;
-    
     ///////////////////////////////////////////////////////////////////////////
     // VARIABLES
     ///////////////////////////////////////////////////////////////////////////
@@ -35,7 +21,7 @@ package physical
     /**
      * Is this quadtree node a leaf?
      */
-    public function get isLeaf():Boolean 
+    private function get isLeaf():Boolean 
     { 
       return topLeft == null; // Other sub-quadtrees assumed to be the same.
     }
@@ -47,40 +33,40 @@ package physical
     public var containedObjects:Vector.<GameObject>;
     
     /**
-     * The upper-left child node.
-     */
-    public var topLeft:Quadtree;
-    
-    /**
-     * The upper-right child node.
-     */
-    public var topRight:Quadtree;
-    
-    /**
-     * The lower-left child node.
-     */
-    public var bottomLeft:Quadtree;
-    
-    /**
-     * The lower-right child node.
-     */
-    public var bottomRight:Quadtree;
-    
-    /**
      * This node's bounding rectangle.
      */
-    public var bounds:Rectangle;
+    private var bounds:Rectangle;
     
     /**
      * The depth of this node with respect to the quadtree root.
      */
     private var depth:int;
     
+    /**
+     * The upper-left child node.
+     */
+    private var topLeft:QuadtreeNode;
+    
+    /**
+     * The upper-right child node.
+     */
+    private var topRight:QuadtreeNode;
+    
+    /**
+     * The lower-left child node.
+     */
+    private var bottomLeft:QuadtreeNode;
+    
+    /**
+     * The lower-right child node.
+     */
+    private var bottomRight:QuadtreeNode;
+    
     ///////////////////////////////////////////////////////////////////////////
     // CONSTRUCTOR
     ///////////////////////////////////////////////////////////////////////////
     
-    public function Quadtree(boundingArea:Rectangle, depth:int = 0)
+    public function QuadtreeNode(boundingArea:Rectangle, depth:int = 0)
     {
       this.containedObjects = new Vector.<GameObject>();
       
@@ -129,11 +115,30 @@ package physical
       {
         containedObjects.push(go);
         
-        if (containedObjects.length > maxChildrenPerLeaf && depth < maxDepth)
+        if (containedObjects.length > Quadtree.leafLoad && depth < Quadtree.maxTreeDepth)
           subdivide();
       }
       else
         distributeObject(go);
+    }
+    
+    /**
+     * Gets all the leaves of the quadtree rooted at this node and pushes them into a given vector.
+     * Uses recursive DFS to traverse tree.
+     * 
+     * @param leavesSoFar - aggregate vector to store leaves in.
+     */
+    public function getLeaves(leavesSoFar:Vector.<QuadtreeNode>):void
+    {
+      if (isLeaf)
+        leavesSoFar.push(this);
+      else
+      {
+        topLeft.getLeaves(leavesSoFar);
+        topRight.getLeaves(leavesSoFar);
+        bottomLeft.getLeaves(leavesSoFar);
+        bottomRight.getLeaves(leavesSoFar);
+      }
     }
     
     /**
@@ -150,10 +155,10 @@ package physical
       var bl:Rectangle = new Rectangle(bounds.x,             bounds.y + halfHeight, halfWidth, halfHeight);
       var br:Rectangle = new Rectangle(bounds.x + halfWidth, bounds.y + halfHeight, halfWidth, halfHeight);
       
-      topLeft     = new Quadtree(tl, depth + 1);
-      topRight    = new Quadtree(tr, depth + 1);
-      bottomLeft  = new Quadtree(bl, depth + 1);
-      bottomRight = new Quadtree(br, depth + 1);
+      topLeft     = new QuadtreeNode(tl, depth + 1);
+      topRight    = new QuadtreeNode(tr, depth + 1);
+      bottomLeft  = new QuadtreeNode(bl, depth + 1);
+      bottomRight = new QuadtreeNode(br, depth + 1);
       
       for each (var child:GameObject in containedObjects)
         distributeObject(child);

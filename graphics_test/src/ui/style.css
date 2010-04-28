@@ -1,0 +1,78 @@
+/* CSS file */
+
+@font-face
+{
+  src: url("assets/pixelmix.ttf");
+  fontFamily: Pixel;
+  fontStyle: normal;
+  fontWeight: normal;
+  advancedAntiAliasing: false;
+}
+
+Panel
+{
+  headerHeight: 0;
+  
+  backgroundColor: #ffffff;
+  backgroundAlpha: 0.1;
+  
+  borderColor: #ffffff;
+  borderAlpha: 0.1;
+  borderThicknessLeft: 2;
+  borderThicknessRight: 2;
+  
+  highlightAlphas: 0, 0;
+  
+  roundedBottomCorners: true;  
+  cornerRadius: 2;
+}
+
+Label
+{
+  fontFamily: Pixel;
+  fontAntiAliasType: normal;
+  color: #ffffff;
+  fontSize: 8;
+}
+
+Button 
+{
+  focusAlpha: 0;
+  fillAlphas: 0.2, 0.2;
+  fillColors: white, white;
+  highlightAlphas: 0, 0;
+  
+  cornerRadius: 0;
+  
+  borderColor: #222222;
+  
+  color: white;
+  fontFamily: Pixel;
+  fontWeight: normal;
+  fontAntiAliasType: normal;
+  fontSize: 8;
+}
+
+TextInput
+{
+  paddingLeft: 5;
+  
+  backgroundColor: black;
+  backgroundAlpha: 0.4;
+  
+  borderThickness: 0;
+  borderStyle: solid;
+  
+  color: white;
+  fontFamily: Pixel;
+  fontWeight: normal;
+  fontStyle: normal;
+  fontAntiAliasType: normal;
+  fontSize: 8;
+}
+
+VBox
+{
+  horizontalAlign: center;
+  verticalGap: 0;
+}
