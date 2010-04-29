@@ -3,20 +3,23 @@
   verticalGap="0" horizontalGap="5"
   layout="horizontal">
   <mx:HBox 
-    height="100%" verticalAlign="middle" horizontalGap="0">
+    height="100%" verticalAlign="middle">
     <!---
     For displaying current FPS.
     -->
     <utils:FPS id="lblFps"
-      width="70" />
-      
+      width="70"
+      color="0x99ff99" />
+  </mx:HBox>
+
+  <mx:HBox horizontalGap="0">
     <mx:Label text="# of balls:" />
     
     <!---
       Sets the number of active simulation objects.
     -->
     <mx:TextInput id="txtNumSimulationObjects"
-      width="40" height="14" />
+      width="40" height="14" />    
   </mx:HBox>
 
   <!---

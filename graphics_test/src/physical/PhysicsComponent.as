@@ -149,10 +149,10 @@ package physical
      * 
      * @param other - the other PhysicsComponent.
      * 
-     * @return The appropriate collision response. An impulse of '+j' should
-     *         be applied to this component and a '-j' for the other.
+     * @return The appropriate collision response. An impulse of '+1' should
+     *         be applied to this component and a '-1' for the other.
      */
-    public function computeCollision(other:PhysicsComponent):CollisionResponse
+    public function computeCollision(other:PhysicsComponent):Vector2n
     {
       var n:Vector2n = this.intersects(other);
       
@@ -164,10 +164,12 @@ package physical
       // Don't process objects that are already separating.
       if (vPQ.dot(n) > 0)
         return null;
-      
+        
       var j:Number = (-(1 + restitutionCoefficient) * vPQ.dot(n)) / (n.dot(n) * (1 / mass + 1 / other.mass));
       
-      return new CollisionResponse(j, n);
+      n.scale(j);
+      
+      return n;
     }
     
     /**
