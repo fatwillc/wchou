@@ -100,6 +100,7 @@ package physical.quadtree
      */
     public function intersects(go:GameObject):Boolean
     {
+      // TODO Change this so it doesn't depend on the drawable.
       var d:DisplayObject = go.graphics.drawable;
       return bounds.intersects(d.getRect(d.parent));
     }

@@ -1,6 +1,6 @@
 package physical
 {
-  import utils.Vector2;
+  import utils.Vector2n;
   
   /**
    * A GameObject component that handles physics state.
@@ -38,17 +38,17 @@ package physical
     /** 
      * Current aggregate force vector. 
      */
-    public var F:Vector2;
+    public var F:Vector2n;
     
     /** 
      * Current velocity. 
      */
-    public var v:Vector2;
+    public var v:Vector2n;
     
     /** 
      * Current position. 
      */
-    public var p:Vector2; 
+    public var p:Vector2n; 
     
     /** 
      * Current angular velocity in degrees. 
@@ -70,19 +70,19 @@ package physical
     // CONSTRUCTOR
     ///////////////////////////////////////////////////////////////////////////  
     
-    public function PhysicsComponent(isPinned:Boolean = false, F:Vector2 = null, v:Vector2 = null, p:Vector2 = null, w:Number = 0, mass:Number = 1, boundingCircle:Circle = null)
+    public function PhysicsComponent(isPinned:Boolean = false, F:Vector2n = null, v:Vector2n = null, p:Vector2n = null, w:Number = 0, mass:Number = 1, boundingCircle:Circle = null)
     {
       this.isPinned = isPinned;
       
-      this.F = new Vector2();
+      this.F = new Vector2n();
       if (F != null)
         this.F.copy(F);
       
-      this.v = new Vector2();
+      this.v = new Vector2n();
       if (v != null)
         this.v.copy(v);
       
-      this.p = new Vector2();
+      this.p = new Vector2n();
       if (p != null)
         this.p.copy(p);
       
@@ -128,12 +128,12 @@ package physical
      * @return If intersects, returns contact normal (may not be unit length). 
      *         Otherwise, returns null.
      */
-    private function intersects(other:PhysicsComponent):Vector2
+    private function intersects(other:PhysicsComponent):Vector2n
     {
       if (boundingCircle == null || other.boundingCircle == null)
         return null;
       
-      var thisToOther:Vector2 = p.subtract(other.p);
+      var thisToOther:Vector2n = p.subtract(other.p);
       
       var overlap:Number = thisToOther.length() - (boundingCircle.radius + other.boundingCircle.radius);
       
@@ -154,12 +154,12 @@ package physical
      */
     public function computeCollision(other:PhysicsComponent):CollisionResponse
     {
-      var n:Vector2 = this.intersects(other);
+      var n:Vector2n = this.intersects(other);
       
       if (n == null)
         return null;
       
-      var vPQ:Vector2 = v.subtract(other.v);
+      var vPQ:Vector2n = v.subtract(other.v);
       
       // Don't process objects that are already separating.
       if (vPQ.dot(n) > 0)
