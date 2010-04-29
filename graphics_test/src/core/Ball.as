@@ -4,6 +4,7 @@ package core
   import flash.geom.ColorTransform;
   
   import mx.controls.Image;
+  import mx.events.FlexEvent;
   
   import physical.Circle;
   
@@ -11,6 +12,9 @@ package core
   
   public class Ball extends GameObject
   {
+    [Embed(source="assets/ball.swf")]
+    private var ballSource:Class;
+    
     /**
      * Creates a Ball at the given position with a random color.
      * 
@@ -25,8 +29,8 @@ package core
       
       var image:Image = new Image();
       image.transform.colorTransform = new ColorTransform(0, 0, 0, 1, Math.random() * 255, Math.random() * 255, Math.random() * 255);
-      image.addEventListener(Event.COMPLETE, loadComplete);
-      image.load("./assets/ball.swf");
+      image.addEventListener(mx.events.FlexEvent.INITIALIZE, initializeComplete);
+      image.source = ballSource;
       
       graphics.drawable = image;
 
@@ -34,7 +38,7 @@ package core
       physics.v = Vector2n.randomUnitCircle(Math.random() * 50);
     }
     
-    private function loadComplete(e:Event):void
+    private function initializeComplete(e:Event):void
     {
       var graphicsImage:Image = graphics.drawable as Image;
       
