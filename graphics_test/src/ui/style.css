@@ -38,19 +38,24 @@ Label
 Button 
 {
   focusAlpha: 0;
-  fillAlphas: 0.2, 0.2;
+  fillAlphas: 0.3, 0.3;
   fillColors: white, white;
   highlightAlphas: 0, 0;
   
   cornerRadius: 0;
   
-  borderColor: #222222;
+  borderColor: #333333;
   
   color: white;
   fontFamily: Pixel;
   fontWeight: normal;
   fontAntiAliasType: normal;
   fontSize: 8;
+}
+
+Button.sub1
+{
+  fillAlphas: 0.15, 0.15;
 }
 
 TextInput

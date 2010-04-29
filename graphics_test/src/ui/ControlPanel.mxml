@@ -1,23 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<mx:Panel xmlns:mx="http://www.adobe.com/2006/mxml"
+<mx:Panel xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:utils="utils.*"
   verticalGap="0" horizontalGap="5"
   layout="horizontal">
-  <!---
+  <mx:HBox 
+    height="100%" verticalAlign="middle" horizontalGap="0">
+    <!---
     For displaying current FPS.
-  -->
-  <mx:Label id="lblFps"
-    width="60" paddingTop="10" />
-  
-  <mx:VBox>
-    <mx:Label text="# of balls" />
+    -->
+    <utils:FPS id="lblFps"
+      width="70" />
+      
+    <mx:Label text="# of balls:" />
     
     <!---
       Sets the number of active simulation objects.
     -->
     <mx:TextInput id="txtNumSimulationObjects"
       width="40" height="14" />
-  </mx:VBox>
-    
+  </mx:HBox>
+
   <!---
     Toggles rendering method when clicked.
   -->
@@ -37,28 +38,33 @@
       Toggles broad-phase filtering for collision processing.
     -->
     <mx:Button id="btnToggleBroadPhase"
-      width="125" height="16"
+      width="125" height="16" styleName="sub1"
       label="broad-phase off"
-      enabled="false" />
+      visible="false" includeInLayout="false" />
 
-    <mx:HBox id="boxQuadtreeLeafLoad"
+    <!---
+      Toggles visualization of broad-phase data structures.
+    -->
+    <mx:Button id="btnToggleBroadPhaseVisualization"
+      width="125" height="16" styleName="sub1"
+      label="visuals off"
+      visible="false" includeInLayout="false" />
+
+    <mx:HBox id="boxQuadtreeLeafLoad" 
       visible="false" includeInLayout="false">
       <mx:Label text="leaf load" />
+      
+      <!---
+        Sets the leaf load of quadtree nodes.
+      -->
       <mx:TextInput id="txtQuadtreeLeafLoad" 
-        width="25" height="14" 
-        text="{Quadtree.leafLoad}" change="updateLeafLoad();" />
+        width="25" height="14" />
     </mx:HBox>
   </mx:VBox>
   
   <mx:Script>
     <![CDATA[
       import physical.quadtree.Quadtree;
-      
-      private function updateLeafLoad():void
-      {
-        var newValue:int = parseInt(txtQuadtreeLeafLoad.text);
-        Quadtree.leafLoad = Math.max(1, isNaN(newValue) ? 1 : newValue);
-      }
     ]]>
   </mx:Script>
 </mx:Panel>
