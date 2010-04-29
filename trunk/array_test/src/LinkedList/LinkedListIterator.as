@@ -1,4 +1,4 @@
-package LinkedList {
+package linkedlist {
   
   /** An iterator for a linked list. */
   public class LinkedListIterator  {
