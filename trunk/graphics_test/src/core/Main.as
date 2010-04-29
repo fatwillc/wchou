@@ -59,6 +59,11 @@ package core
     // VARIABLES
     ///////////////////////////////////////////////////////////////////////////
     
+    /**
+     * If true, simulation is paused.
+     */
+    private var isPaused:Boolean = true;
+    
     /** 
      * All current active objects.
      */
@@ -113,6 +118,10 @@ package core
       objects = new Vector.<GameObject>();
       updateNumSimulationObjects();
       
+      // Add pause/unpause listeners.
+      addEventListener(MouseEvent.MOUSE_OUT,  togglePause);
+      addEventListener(MouseEvent.MOUSE_OVER, togglePause);
+      
       // Start simulation.
       addEventListener(Event.ENTER_FRAME, onEnterFrame);
     }
@@ -155,10 +164,27 @@ package core
     // SIMULATION METHODS
     ///////////////////////////////////////////////////////////////////////////
 
+    /**
+     * Toggles between simulation pause and unpause states.
+     */
+    private function togglePause(e:MouseEvent):void
+    {
+      if (e.type == MouseEvent.MOUSE_OUT)
+        isPaused = true;
+      else if (e.type == MouseEvent.MOUSE_OVER)
+        isPaused = false;
+    }
+
+    /**
+     * The main simulation loop.
+     */
     private function onEnterFrame(e:Event):void
     {
+      if (isPaused)
+        return;
+      
       // TODO Make this init check prettier.
-       if (!controlPanel.initialized)
+      if (!controlPanel.initialized)
         return;
       
       // Calculate dt.
