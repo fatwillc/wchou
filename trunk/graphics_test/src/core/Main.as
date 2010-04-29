@@ -12,7 +12,6 @@ package core
   import mx.core.UIComponent;
   
   import physical.BroadPhase;
-  import physical.CollisionResponse;
   import physical.PhysicsComponent;
   import physical.quadtree.*;
   import physical.spatial_hash.SpatialHash;
@@ -254,13 +253,13 @@ package core
               var nextQ:PhysicsComponent = q.physics.clone();
               nextQ.step(dT);
               
-              var response:CollisionResponse = nextP.computeCollision(nextQ);
+              var response:Vector2n = nextP.computeCollision(nextQ);
               if (response != null)
               {
                 noCollisions = false;
                 
-                p.physics.v.acc(response.contactNormal,  response.impulse);
-                q.physics.v.acc(response.contactNormal, -response.impulse);
+                p.physics.v.acc(response,  1);
+                q.physics.v.acc(response, -1);
               }
             }
           }
@@ -283,13 +282,13 @@ package core
                 var nextQ:PhysicsComponent = q.physics.clone();
                 nextQ.step(dT);
                 
-                var response:CollisionResponse = nextP.computeCollision(nextQ);
+                var response:Vector2n = nextP.computeCollision(nextQ);
                 if (response != null)
                 {
                   noCollisions = false;
                   
-                  p.physics.v.acc(response.contactNormal,  response.impulse);
-                  q.physics.v.acc(response.contactNormal, -response.impulse);
+                  p.physics.v.acc(response,  1);
+                  q.physics.v.acc(response, -1);
                 }
               }
             }
@@ -310,13 +309,13 @@ package core
               var nextQ:PhysicsComponent = q.physics.clone();
               nextQ.step(dT);
               
-              var response:CollisionResponse = nextP.computeCollision(nextQ);
+              var response:Vector2n = nextP.computeCollision(nextQ);
               if (response != null)
               {
                 noCollisions = false;
                 
-                p.physics.v.acc(response.contactNormal,  response.impulse);
-                q.physics.v.acc(response.contactNormal, -response.impulse);
+                p.physics.v.acc(response,  1);
+                q.physics.v.acc(response, -1);
               }
             }
           }

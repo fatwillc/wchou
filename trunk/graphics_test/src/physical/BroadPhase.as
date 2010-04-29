@@ -1,11 +1,23 @@
 package physical
 {
+  /**
+   * Enumeration of broad phase methods.
+   */
   public final class BroadPhase
   {
-    public static const NONE:int = 0;
+    /**
+     * Represents the absence of any broad phase mechanism.
+     */
+    public static const NONE:uint = 33123854;
     
-    public static const QUADTREE:int = 1;
+    /**
+     * Uses a quadtree for spatial subdivision.
+     */
+    public static const QUADTREE:uint = 112243520;
     
-    public static const SPATIAL_HASH:int = 2;
+    /**
+     * Uses spatial hashing to implement spatial locality.
+     */
+    public static const SPATIAL_HASH:uint = 139193864;
   }
 }

@@ -79,5 +79,5 @@ TextInput
 VBox
 {
   horizontalAlign: center;
-  verticalGap: 0;
+  verticalGap: 1;
 }
