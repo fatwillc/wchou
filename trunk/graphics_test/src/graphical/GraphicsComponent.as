@@ -9,7 +9,7 @@ package graphical
   import mx.flash.UIMovieClip;
   
   import utils.Geometry;
-  import utils.Vector2;
+  import utils.Vector2n;
   
   public class GraphicsComponent
   {
@@ -49,7 +49,7 @@ package graphical
     // METHODS
     /////////////////////////////////////////////////////////////////////////// 
     
-    public function update(position:Vector2, rotation:Number):void
+    public function update(position:Vector2n, rotation:Number):void
     {
       if (drawable == null)
         return;
@@ -59,7 +59,7 @@ package graphical
       rotateAboutCenter(rotation);
     }
     
-    public function draw(buffer:BitmapData, position:Vector2):void
+    public function draw(buffer:BitmapData, position:Vector2n):void
     {
       if (drawable == null)
         return;
@@ -82,7 +82,7 @@ package graphical
      * @param currentRotation - the current rotation of the object in degrees. 
      *        Necessary for finding center in object coordinates.
      */
-    private function moveGraphics(position:Vector2, currentRotation:Number):void
+    private function moveGraphics(position:Vector2n, currentRotation:Number):void
     {
       // Standard Flex components define rotation wrt the top left corner,
       // but imported SWCs define rotation wrt the center of the UIMovieClip.
@@ -101,11 +101,11 @@ package graphical
         else
         {
           // TODO Test this.
-          var graphicsOrigin:Vector2 = new Vector2();
+          var graphicsOrigin:Vector2n = new Vector2n();
           graphicsOrigin.copy(position);
           
-          var u:Vector2 = getDirection();
-          var v:Vector2 = new Vector2(u.y, -u.x);
+          var u:Vector2n = getDirection();
+          var v:Vector2n = new Vector2n(u.y, -u.x);
           graphicsOrigin.acc(u, drawable.height / 2);
           graphicsOrigin.acc(v, drawable.width / 2);
           
@@ -150,11 +150,11 @@ package graphical
     /** 
      * Gets the current direction this object is facing (with respect to (width/2, 0) object coordinates). 
      */
-    public function getDirection():Vector2
+    public function getDirection():Vector2n
     {
       var currentRotation:Number = drawable.rotation * Geometry.degreesToRadians;
       
-      var dir:Vector2 = new Vector2();
+      var dir:Vector2n = new Vector2n();
       dir.x = Math.sin(currentRotation);
       dir.y = -Math.cos(currentRotation);
       dir.normalize(1.0);

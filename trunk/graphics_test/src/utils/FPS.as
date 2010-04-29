@@ -33,7 +33,7 @@ package utils
      */
     private var formatter:NumberFormatter;
     
-    public function FPS(label:Label, displayInterval:int = 10) 
+    public function FPS(label:Label, displayInterval:int = 5) 
     {
       this.label = label;
       this.displayInterval = displayInterval;

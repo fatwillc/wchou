@@ -46,7 +46,7 @@ package physical.quadtree
     /**
      * Creates a new quadtree.
      * 
-     * @param boundingArea - the relevant physical bounds of the objects being contained.
+     * @param boundingArea - the physical bounds of the objects being contained.
      * @param objectsToContain - the objects to distribute in the quadtree.
      */
     public function Quadtree(boundingArea:Rectangle, objectsToContain:Vector.<GameObject>)

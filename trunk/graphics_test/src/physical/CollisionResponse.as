@@ -1,6 +1,6 @@
 package physical
 {
-  import utils.Vector2;
+  import utils.Vector2n;
   
   /**
    * A collision response is a tuple containing all the necessary information
@@ -17,10 +17,10 @@ package physical
     /**
      * Collision contact normal.
      */
-    public function get contactNormal():Vector2 { return _contactNormal; }
-    private var _contactNormal:Vector2;
+    public function get contactNormal():Vector2n { return _contactNormal; }
+    private var _contactNormal:Vector2n;
     
-    public function CollisionResponse(j:Number, n:Vector2)
+    public function CollisionResponse(j:Number, n:Vector2n)
     {
       _impulse = j;
       

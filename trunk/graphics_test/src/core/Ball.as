@@ -7,7 +7,7 @@ package core
   
   import physical.Circle;
   
-  import utils.Vector2;
+  import utils.Vector2n;
   
   public class Ball extends GameObject
   {
@@ -16,7 +16,7 @@ package core
      * 
      * @param position - the location to place the ball.
      */
-    public function Ball(position:Vector2)
+    public function Ball(position:Vector2n)
     {
       super();
       
@@ -31,7 +31,7 @@ package core
       graphics.drawable = image;
 
       physics.p.copy(position);
-      physics.v = Vector2.randomUnitCircle(Math.random() * 50);
+      physics.v = Vector2n.randomUnitCircle(Math.random() * 50);
     }
     
     private function loadComplete(e:Event):void

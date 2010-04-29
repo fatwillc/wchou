@@ -1,15 +1,15 @@
 package utils 
 {
   /** 
-   * A two-dimensional vector representation, because flash.geom.Point is weak. 
+   * A two-dimensional vector representation with Number values. 
    */
-  public class Vector2 
+  public class Vector2n 
   {
     public var x:Number;
     
     public var y:Number;
     
-    public function Vector2(x:Number = 0, y:Number = 0) 
+    public function Vector2n(x:Number = 0, y:Number = 0) 
     {
       this.x = x;
       this.y = y;
@@ -26,7 +26,7 @@ package utils
     /** 
      * Gets the dot product of this and a given vector. 
      */
-    public function dot(v:Vector2):Number 
+    public function dot(v:Vector2n):Number 
     {
       return x * v.x + y * v.y;
     }
@@ -43,7 +43,7 @@ package utils
     /** 
      * Copies the values of a given vector. 
      */
-    public function copy(v:Vector2):void 
+    public function copy(v:Vector2n):void 
     {
       this.x = v.x;
       this.y = v.y;
@@ -74,23 +74,23 @@ package utils
     /** 
      * Returns the result of adding a given vector as a new vector.
      */
-    public function add(v:Vector2):Vector2 
+    public function add(v:Vector2n):Vector2n 
     {
-      return new Vector2(x + v.x, y + v.y);
+      return new Vector2n(x + v.x, y + v.y);
     }
     
     /**
      * Returns the result of subtracting a given vector as a new vector.
      */
-    public function subtract(v:Vector2):Vector2 
+    public function subtract(v:Vector2n):Vector2n 
     {
-      return new Vector2(x - v.x, y - v.y);
+      return new Vector2n(x - v.x, y - v.y);
     }
     
     /**
      * Adds a given vector with a given scale in-place.
      */
-    public function acc(v:Vector2, s:Number):void 
+    public function acc(v:Vector2n, s:Number):void 
     {
       x += v.x * s;
       y += v.y * s;
@@ -119,11 +119,11 @@ package utils
      * 
      * @return a vector with polar coordinates (scale, [0, 2pi]).
      */
-    public static function randomUnitCircle(scale:Number = 1):Vector2 
+    public static function randomUnitCircle(scale:Number = 1):Vector2n 
     {
       var theta:Number = Math.random() * Math.PI * 2;
       
-      var v:Vector2 = new Vector2(Math.sin(theta), Math.cos(theta));
+      var v:Vector2n = new Vector2n(Math.sin(theta), Math.cos(theta));
       
       v.scale(scale);
       
