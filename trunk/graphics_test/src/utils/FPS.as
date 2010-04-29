@@ -6,13 +6,8 @@ package utils
   /** 
    * A simple FPS display. 
    */
-  public class FPS 
+  public class FPS extends Label
   {
-    /** 
-     * Label used to display FPS. 
-     */
-    private var label:Label;
-    
     /** 
      * Number of frames per FPS display update. 
      */
@@ -33,9 +28,10 @@ package utils
      */
     private var formatter:NumberFormatter;
     
-    public function FPS(label:Label, displayInterval:int = 5) 
+    public function FPS(displayInterval:int = 5) 
     {
-      this.label = label;
+      super();
+      
       this.displayInterval = displayInterval;
       
       formatter = new NumberFormatter();
@@ -48,7 +44,7 @@ package utils
       numberAggregate    += 1;
       
       if (numberAggregate > displayInterval) {
-        label.text = "FPS: " + formatter.format(aggregateFramerate / numberAggregate).toString();
+        text = "FPS: " + formatter.format(aggregateFramerate / numberAggregate).toString();
         
         aggregateFramerate = numberAggregate = 0;
       }

@@ -69,15 +69,6 @@ package core
      * The game time when the last frame was drawn.
      */
     private var lastTime:uint;
-
-    private var quadtree:Quadtree;
-   
-    private var spatialHash:SpatialHash;
-    
-    /**
-     * Computes and displays current FPS to a Label.
-     */
-    private var fpsDisplay:FPS;
     
     ///////////////////////////////////////////////////////////////////////////
     // SIMULATION SWITCHES
@@ -98,6 +89,11 @@ package core
      * The current broad-phase method being used.
      */
     private var broadPhase:int = BroadPhase.NONE;
+    
+    /**
+     * Draw broad-phase data structure visualizations?
+     */
+    private var isVisualizeBroadPhase:Boolean = false;
 
     ///////////////////////////////////////////////////////////////////////////
     // CONSTRUCTOR & INITIALIZATION METHODS
@@ -110,9 +106,9 @@ package core
       this.width = width;
       this.height = height;
       
-      initializeUI();
-
       initializeDisplays();
+
+      initializeUI();
       
       // Set up simulation objects.
       objects = new Vector.<GameObject>();
@@ -150,11 +146,14 @@ package core
       
       controlPanel.btnToggleBroadPhase.addEventListener(MouseEvent.CLICK, toggleBroadPhase);
       
-      fpsDisplay = new FPS(controlPanel.lblFps);
+      controlPanel.btnToggleBroadPhaseVisualization.addEventListener(MouseEvent.CLICK, toggleVisualizeBroadPhase);
+      
+      controlPanel.txtQuadtreeLeafLoad.text = Quadtree.leafLoad.toString();
+      controlPanel.txtQuadtreeLeafLoad.addEventListener(Event.CHANGE, updateLeafLoad);
     }
     
     ///////////////////////////////////////////////////////////////////////////
-    // METHODS
+    // SIMULATION METHODS
     ///////////////////////////////////////////////////////////////////////////
 
     private function onEnterFrame(e:Event):void
@@ -175,22 +174,7 @@ package core
         blitBackBuffer.fillRect(new Rectangle(0, 0, blitBackBuffer.width, blitBackBuffer.height), 0x333333);
       
       if (isCollisions)
-      {
-        // Construct broad-phase data structure, if applicable.
-        if (broadPhase == BroadPhase.QUADTREE) 
-        {
-          quadtree = new Quadtree(new Rectangle(0, 0, width, height), objects);
-          quadtree.visualize(this);
-        }
-        else if (broadPhase == BroadPhase.SPATIAL_HASH)
-        {
-          var objectSize:Number = objects[0].physics.boundingCircle.radius * 2;
-          spatialHash = new SpatialHash(new Rectangle(0, 0, width, height), objects, objectSize);
-          spatialHash.visualize(this);
-        }
-        
         processCollisions(dT);
-      }
       
       for each (var go:GameObject in objects)
       {
@@ -209,8 +193,150 @@ package core
         blitFrontBuffer.graphics.endFill();
       }
       
-      fpsDisplay.update(dT);
+      controlPanel.lblFps.update(dT);
     }
+    
+    /**
+     * Processes collisions for all current game objects.
+     * Uses Gauss-Seidel velocity-level collision resolution.
+     * Assumes no interpenetration currently exists.
+     * 
+     * @param dT - size of the current timestep.
+     */
+    private function processCollisions(dT:Number):void
+    {
+      // TODO Improve DRY wrt collision algorithms.
+      
+      /////////////////////////////////////////////////////////////////////////
+      // Construct broad-phase data structure, if applicable.
+      if (broadPhase == BroadPhase.QUADTREE) 
+      {
+        var quadtree:Quadtree = new Quadtree(new Rectangle(0, 0, width, height), objects);
+        
+        if (isVisualizeBroadPhase)
+          quadtree.visualize(this);
+      }
+      else if (broadPhase == BroadPhase.SPATIAL_HASH)
+      {
+        var objectSize:Number = objects[0].physics.boundingCircle.radius * 2;
+        var spatialHash:SpatialHash = new SpatialHash(new Rectangle(0, 0, width, height), objects, objectSize);
+        
+        if (isVisualizeBroadPhase)
+          spatialHash.visualize(this);
+      }
+      
+      // Maximum number of collision passes.
+      var maxIters:int = 3;
+      
+      // Current number of pair-wise resolution passes.
+      var currIters:int = 0;
+      
+      // Have no collisions occured during this pass?
+      var noCollisions:Boolean = false;
+      
+      while (currIters < maxIters && !noCollisions)
+      {
+        noCollisions = true;
+        
+        ///////////////////////////////////////////////////////////////////////
+        // Pair-wise collisions
+        if (broadPhase == BroadPhase.NONE)
+        {
+          for (var i:int = 0; i < objects.length; i++)
+          {
+            var p:GameObject = objects[i];
+            var nextP:PhysicsComponent = p.physics.clone();
+            nextP.step(dT);
+            
+            for (var j:int = i + 1; j < objects.length; j++)
+            {
+              var q:GameObject = objects[j];
+              var nextQ:PhysicsComponent = q.physics.clone();
+              nextQ.step(dT);
+              
+              var response:CollisionResponse = nextP.computeCollision(nextQ);
+              if (response != null)
+              {
+                noCollisions = false;
+                
+                p.physics.v.acc(response.contactNormal,  response.impulse);
+                q.physics.v.acc(response.contactNormal, -response.impulse);
+              }
+            }
+          }
+        }
+        ///////////////////////////////////////////////////////////////////////
+        // Quadtree collisions
+        else if (broadPhase == BroadPhase.QUADTREE)
+        {
+          for each (var leaf:QuadtreeNode in quadtree.leaves)
+          {
+            for (var i:int = 0; i < leaf.containedObjects.length; i++)
+            {
+              var p:GameObject = leaf.containedObjects[i];
+              var nextP:PhysicsComponent = p.physics.clone();
+              nextP.step(dT);    
+              
+              for (var j:int = i + 1; j < leaf.containedObjects.length; j++)
+              {
+                var q:GameObject = leaf.containedObjects[j];
+                var nextQ:PhysicsComponent = q.physics.clone();
+                nextQ.step(dT);
+                
+                var response:CollisionResponse = nextP.computeCollision(nextQ);
+                if (response != null)
+                {
+                  noCollisions = false;
+                  
+                  p.physics.v.acc(response.contactNormal,  response.impulse);
+                  q.physics.v.acc(response.contactNormal, -response.impulse);
+                }
+              }
+            }
+          }
+        }
+        ///////////////////////////////////////////////////////////////////////
+        // Spatial hash collisions
+        else if (broadPhase == BroadPhase.SPATIAL_HASH)
+        {
+          for each (var p:GameObject in objects)
+          {
+            var neighbors:Vector.<GameObject> = spatialHash.getNeighbors(p);
+            var nextP:PhysicsComponent = p.physics.clone();
+            nextP.step(dT); 
+              
+            for each (var q:GameObject in neighbors)
+            {
+              var nextQ:PhysicsComponent = q.physics.clone();
+              nextQ.step(dT);
+              
+              var response:CollisionResponse = nextP.computeCollision(nextQ);
+              if (response != null)
+              {
+                noCollisions = false;
+                
+                p.physics.v.acc(response.contactNormal,  response.impulse);
+                q.physics.v.acc(response.contactNormal, -response.impulse);
+              }
+            }
+          }
+        }
+        
+        currIters += 1;
+      }
+    }
+    
+    /**
+     * Gets a random position on the viewable screen.
+     */
+    private function randomScreenPosition():Vector2n 
+    {
+      return new Vector2n(Math.random() * width, Math.random() * height);
+    }
+    
+    ///////////////////////////////////////////////////////////////////////////
+    // UI METHODS
+    ///////////////////////////////////////////////////////////////////////////
     
     /**
      * Toggles rendering method between blit and display list.
@@ -242,16 +368,16 @@ package core
       
       if (isCollisions)
       {
-        controlPanel.btnToggleBroadPhase.enabled = true;
+        controlPanel.btnToggleBroadPhase.visible = controlPanel.btnToggleBroadPhase.includeInLayout = true;
         controlPanel.btnToggleCollisions.label = "collisions on";
       }
       else
       {
-        controlPanel.btnToggleBroadPhase.enabled = false;
-        controlPanel.btnToggleCollisions.label = "collisions off";
-        
         while (broadPhase != BroadPhase.NONE)
           toggleBroadPhase();
+          
+        controlPanel.btnToggleBroadPhase.visible = controlPanel.btnToggleBroadPhase.includeInLayout = false;
+        controlPanel.btnToggleCollisions.label = "collisions off";
       }
     }
     
@@ -265,7 +391,8 @@ package core
         case BroadPhase.NONE:
           broadPhase = BroadPhase.QUADTREE;
           controlPanel.btnToggleBroadPhase.label = "quadtree";
-          controlPanel.boxQuadtreeLeafLoad.visible = controlPanel.boxQuadtreeLeafLoad.includeInLayout = true;          
+          controlPanel.boxQuadtreeLeafLoad.visible = controlPanel.boxQuadtreeLeafLoad.includeInLayout = true;
+          controlPanel.btnToggleBroadPhaseVisualization.visible = controlPanel.btnToggleBroadPhaseVisualization.includeInLayout = true;
           break;
         case BroadPhase.QUADTREE:
           broadPhase = BroadPhase.SPATIAL_HASH;
@@ -275,119 +402,28 @@ package core
         case BroadPhase.SPATIAL_HASH:
           broadPhase = BroadPhase.NONE;
           controlPanel.btnToggleBroadPhase.label = "broad-phase off";
+          controlPanel.btnToggleBroadPhaseVisualization.visible = controlPanel.btnToggleBroadPhaseVisualization.includeInLayout = false;
           break;       
       }
     }
     
-    // TODO Improve DRY wrt collision algorithms.
     /**
-     * Processes collisions for all current game objects.
-     * Uses Gauss-Seidel velocity-level collision resolution.
-     * Assumes no interpenetration currently exists.
-     * 
-     * @param dT - size of the current timestep.
+     * Toggles visualization of broad-phase data structures.
      */
-    private function processCollisions(dT:Number):void
+    private function toggleVisualizeBroadPhase(e:MouseEvent = null):void
     {
-      // Maximum number of collision passes.
-      var maxIters:int = 3;
+      isVisualizeBroadPhase = !isVisualizeBroadPhase;
       
-      // Current number of pair-wise resolution passes.
-      var currIters:int = 0;
-      
-      // Have no collisions occured during this pass?
-      var noCollisions:Boolean = false;
-      
-      while (currIters < maxIters && !noCollisions)
-      {
-        noCollisions = true;
-        
-        ///////////////////////////////////////////////////
-        // Pair-wise collisions
-        if (broadPhase == BroadPhase.NONE)
-        {
-          for (var i:int = 0; i < objects.length; i++)
-          {
-            var p:GameObject = objects[i];
-            var nextP:PhysicsComponent = p.physics.clone();
-            nextP.step(dT);
-            
-            for (var j:int = i + 1; j < objects.length; j++)
-            {
-              var q:GameObject = objects[j];
-              var nextQ:PhysicsComponent = q.physics.clone();
-              nextQ.step(dT);
-              
-              var response:CollisionResponse = nextP.computeCollision(nextQ);
-              if (response != null)
-              {
-                noCollisions = false;
-                
-                p.physics.v.acc(response.contactNormal,  response.impulse);
-                q.physics.v.acc(response.contactNormal, -response.impulse);
-              }
-            }
-          }
-        }
-        ///////////////////////////////////////////////////
-        // Quadtree collisions
-        else if (broadPhase == BroadPhase.QUADTREE)
-        {
-          for each (var leaf:QuadtreeNode in quadtree.leaves)
-          {
-            for (var i:int = 0; i < leaf.containedObjects.length; i++)
-            {
-              var p:GameObject = leaf.containedObjects[i];
-              var nextP:PhysicsComponent = p.physics.clone();
-              nextP.step(dT);    
-              
-              for (var j:int = i + 1; j < leaf.containedObjects.length; j++)
-              {
-                var q:GameObject = leaf.containedObjects[j];
-                var nextQ:PhysicsComponent = q.physics.clone();
-                nextQ.step(dT);
-                
-                var response:CollisionResponse = nextP.computeCollision(nextQ);
-                if (response != null)
-                {
-                  noCollisions = false;
-                  
-                  p.physics.v.acc(response.contactNormal,  response.impulse);
-                  q.physics.v.acc(response.contactNormal, -response.impulse);
-                }
-              }
-            }
-          }
-        }
-        ///////////////////////////////////////////////////
-        // Spatial hash collisions
-        else if (broadPhase == BroadPhase.SPATIAL_HASH)
-        {
-          for each (var p:GameObject in objects)
-          {
-            var neighbors:Vector.<GameObject> = spatialHash.getNeighbors(p);
-            var nextP:PhysicsComponent = p.physics.clone();
-            nextP.step(dT); 
-              
-            for each (var q:GameObject in neighbors)
-            {
-              var nextQ:PhysicsComponent = q.physics.clone();
-              nextQ.step(dT);
-              
-              var response:CollisionResponse = nextP.computeCollision(nextQ);
-              if (response != null)
-              {
-                noCollisions = false;
-                
-                p.physics.v.acc(response.contactNormal,  response.impulse);
-                q.physics.v.acc(response.contactNormal, -response.impulse);
-              }
-            }
-          }
-        }
-        
-        currIters += 1;
-      }
+      if (isVisualizeBroadPhase)
+        controlPanel.btnToggleBroadPhaseVisualization.label = "visuals on";
+      else
+        controlPanel.btnToggleBroadPhaseVisualization.label = "visuals off";
+    }
+    
+    private function updateLeafLoad(e:Event = null):void
+    {
+      var newValue:int = parseInt(controlPanel.txtQuadtreeLeafLoad.text);
+      Quadtree.leafLoad = Math.max(1, isNaN(newValue) ? 1 : newValue);
     }
     
     /**
@@ -422,14 +458,6 @@ package core
           displayListContainer.removeChild(objects.pop().graphics.drawable);
         }
       }
-    }
-
-    /**
-     * Gets a random position on the viewable screen.
-     */
-    private function randomScreenPosition():Vector2n 
-    {
-      return new Vector2n(Math.random() * width, Math.random() * height);
     }
   }
 }
