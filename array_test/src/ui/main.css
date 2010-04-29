@@ -1,0 +1,50 @@
+/* CSS file */
+
+Label
+{
+  fontFamily: Arial;
+  color: black;
+  fontSize: 9;
+}
+
+Button 
+{
+  focusAlpha: 0;
+  fillColors: #ffffff, #aaaaaa;
+  highlightAlphas: 0, 0;
+  
+  cornerRadius: 0;
+  
+  borderColor: #888888;
+  
+  color: black;
+  fontFamily: Arial;
+  fontWeight: normal;
+  fontSize: 10;
+  letterSpacing: 1;
+}
+
+ColumnChart {
+  chartSeriesStyles: Series1, Series2;
+  
+  fontFamily: Arial;
+  fontSize: 9;
+  fontWeight: normal;
+}
+
+.Series1 {
+  fill: #9999CC;
+}
+
+.Series2 {
+  fill: #666699;
+}
+
+Legend
+{
+  color: black;
+  fontFamily: Arial;
+  fontWeight: normal;
+  fontAntiAliasType: normal;
+  fontSize: 9;
+}

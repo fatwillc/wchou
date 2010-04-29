@@ -1,4 +1,4 @@
-package LinkedList {
+package linkedlist {
   
   /** 
    * A doubly linked list.
