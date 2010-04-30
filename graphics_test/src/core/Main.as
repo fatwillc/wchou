@@ -180,9 +180,6 @@ package core
      */
     private function onEnterFrame(e:Event):void
     {
-      if (isPaused)
-        return;
-      
       // TODO Make this init check prettier.
       if (!controlPanel.initialized)
         return;
@@ -191,6 +188,9 @@ package core
       var currentTime:uint = getTimer();
       var dT:Number = Math.abs(currentTime - lastTime) / 1000.0;
       lastTime = currentTime;
+      
+      if (isPaused)
+        return;
       
       graphics.clear();
       
