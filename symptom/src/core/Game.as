@@ -127,7 +127,7 @@ package core
     public function play(level:Level = null):void 
     {   
       // Get the level to play.       
-      currentLevel = (level != null) ? level : Level.getLevel(3);
+      currentLevel = (level != null) ? level : Level.getLevel(0);
       
       // Set up foreground.
       foreground.removeAllChildren();
