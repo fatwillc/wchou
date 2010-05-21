@@ -37,6 +37,9 @@ The level editor.
       import mx.events.CloseEvent;
       import mx.managers.PopUpManager;
       
+      /** For loading and saving level files. */
+      private var fileLoader:FileReference;
+      
       /** Currently placed objects. */
       private var placedObjects:Vector.<GameObject> = new Vector.<GameObject>();
       
@@ -150,8 +153,6 @@ The level editor.
           selection.y = level.mouseY - selection.height/2;
           
           selection.addEventListener(MouseEvent.MOUSE_DOWN, pickUp);
-          
-          lengthSlider.minimum = Math.max(selection.x + selection.width, lengthSlider.minimum);
         }
 
         selection = null;
@@ -215,6 +216,106 @@ The level editor.
         }
         
         new FileReference().save(output, "MySymptomLevel.xml");
+      }
+      
+      /**
+       * Opens a file browser to load a level XML file.
+       */
+      private function load():void
+      {
+        if (fileLoader == null)
+        {
+          // Initialize fileLoader.
+          fileLoader = new FileReference();
+          fileLoader.addEventListener(Event.SELECT, function():void { fileLoader.load(); });
+          fileLoader.addEventListener(Event.COMPLETE, _load, false, 0, true); 
+        }
+        
+        fileLoader.browse([new FileFilter('Symptom Level', '*.xml')]);
+      }
+      
+      /** 
+       * A callback after the player chooses a file from the file browser. 
+       * Loads the selected file XML data into the level editor.
+       */
+      private function _load(e:Event):void
+      {
+        /////////////////////////////////////////////////////////////
+        // First load the XML data from the selected file.
+        
+        var buffer:ByteArray = fileLoader.data;
+        
+        try
+        {
+          var xml:XML = XML(buffer.readUTFBytes(buffer.bytesAvailable));
+        } 
+        catch (e:Error) 
+        {
+          Alert.show("Selected file has invalid content!", "Symptom > Load custom level");
+          return;
+        }
+        
+        /////////////////////////////////////////////////////////////
+        // Now parse the XML and add the units to the level editor.
+        
+        try 
+        {
+          level.width = lengthSlider.value = Number(xml.@length);
+        } 
+        catch (e:Error) 
+        {
+          throw new Error("Invalid level length.");
+        }
+        
+        for each (var endXml:XML in xml.EndArea) 
+        {
+          var end:EndArea = new EndArea();
+          end.graphics.x = endXml.@x;
+          end.graphics.y = endXml.@y;
+          
+          placedObjects.push(end);
+          level.addChild(end.graphics);
+          end.graphics.addEventListener(MouseEvent.MOUSE_DOWN, pickUp);
+          end.graphics.buttonMode = end.graphics.useHandCursor = end.graphics.mouseChildren = true;
+        }
+        
+        for each (var rbcXml:XML in xml.RBC) 
+        {
+          var rbc:RBC = new RBC();
+          rbc.setColors(Color.fromString(rbcXml.@color), Color.fromString(rbcXml.@dna));
+          
+          var center:Vector2 = rbc.center;
+          rbc.graphics.x = rbcXml.@x - center.x + rbc.graphics.width/2;
+          rbc.graphics.y = rbcXml.@y - center.y + rbc.graphics.height/2;
+          
+          placedObjects.push(rbc);
+          level.addChild(rbc.graphics);
+          rbc.graphics.addEventListener(MouseEvent.MOUSE_DOWN, pickUp);
+          rbc.graphics.buttonMode = rbc.graphics.useHandCursor = rbc.graphics.mouseChildren = true;
+        }
+        
+        for each (var hunterXml:XML in xml.Hunter) 
+        {
+          var hunter:Hunter = new Hunter();
+          hunter.graphics.x = hunterXml.@x;
+          hunter.graphics.y = hunterXml.@y;
+          
+          placedObjects.push(hunter);
+          level.addChild(hunter.graphics);
+          hunter.graphics.addEventListener(MouseEvent.MOUSE_DOWN, pickUp);
+          hunter.graphics.buttonMode = hunter.graphics.useHandCursor = hunter.graphics.mouseChildren = true;
+        }
+        
+        for each (var guardXml:XML in xml.Guard) 
+        {
+          var guard:Guard = new Guard();
+          guard.graphics.x = guardXml.@x;
+          guard.graphics.y = guardXml.@y;
+          
+          placedObjects.push(guard);
+          level.addChild(guard.graphics);
+          guard.graphics.buttonMode = guard.graphics.useHandCursor = guard.graphics.mouseChildren = true;
+        }
       }
       
       /** Resets level data and removes all units. */
@@ -329,6 +430,7 @@ The level editor.
     <mx:HRule width="100%" height="15" />
     
     <mx:Button width="100%" height="40" label="Save!" click="save();" />
+    <mx:Button width="100%" height="40" label="Load" click="load();" />
     <mx:Button width="100%" label="Reset" click="reset();" />
   </mx:VBox>
   
