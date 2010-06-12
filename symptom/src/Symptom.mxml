@@ -62,7 +62,6 @@ either expressed or implied, of William Chou.
   
   <mx:Script>
     <![CDATA[
-      import mx.core.UIComponent;
       import core.*;
       import units.*;
       import units.wbc.*;
@@ -71,6 +70,7 @@ either expressed or implied, of William Chou.
       import utils.*;
       import utils.LinkedList.*;
       import __AS3__.vec.Vector;
+      import mx.core.UIComponent;
       import mx.controls.Image;
       import mx.controls.Text;
       import mx.controls.Alert;
