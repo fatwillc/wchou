@@ -2,6 +2,8 @@ package particle
 {
   import __AS3__.vec.Vector;
   
+  import flash.geom.ColorTransform;
+  
   import mx.core.UIComponent;
   
   import utils.Vector2;
@@ -62,7 +64,7 @@ package particle
       // Initialize pre-defined emitters.
       
       var rocketEmitter:ParticleEmitter = new ParticleEmitter(ROCKET_PROPULSION, new Vector2());
-      var rocketSource:ParticleSource = new ParticleSource(Particle.ORB, 15, 1, 0.02, 0.3, function():Vector2 { return Vector2.randomUnitCircle(30); });
+      var rocketSource:ParticleSource = new ParticleSource(Particle.ORB, 15, 1, 0.02, 0.3, function():Vector2 { return Vector2.randomUnitCircle(30); }, new ColorTransform(0, 0, 0, 1));
       rocketSource.addUpdateFunction(ParticleSource.updateShrink);
       rocketEmitter.addSource(rocketSource);
       rocketEmitter.modify(false);

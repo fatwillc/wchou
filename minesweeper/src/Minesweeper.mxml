@@ -47,7 +47,7 @@ either expressed or implied, of William Chou.
   xmlns:mx="http://www.adobe.com/2006/mxml" 
   layout="absolute"
   width="300" height="300"
-  creationComplete="init();" viewSourceURL="srcview/index.html">
+  creationComplete="init();">
   
   <mx:Script>
     <![CDATA[

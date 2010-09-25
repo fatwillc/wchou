@@ -52,7 +52,7 @@ either expressed or implied, of William Chou.
   horizontalScrollPolicy="off"  verticalScrollPolicy="off"
   frameRate="30"
   applicationComplete="init();" 
-  viewSourceURL="srcview/index.html">
+>
 
   <mx:Style source="styles/asteroids.css" />
 
@@ -219,6 +219,8 @@ either expressed or implied, of William Chou.
         }
         else if (e.type == GameEvent.LOSE)
           levelLoseOut.play([level.container]);
+        
+        level.moneyEarned = 0;
       }
       
       /** Updates upgrade prices on upgrade window. */
@@ -333,7 +335,7 @@ either expressed or implied, of William Chou.
         <mx:Image 
           width="40" height="40"
           source="assets/ui/upgrade.swf" 
-          click="rocket.acceleration.upgrade(bankroll); updateUpgradePrices();" />
+          click="bankroll = rocket.acceleration.upgrade(bankroll); updateUpgradePrices();" />
       </mx:VBox>
       
       <mx:VBox width="125" styleName="column">
@@ -343,7 +345,7 @@ either expressed or implied, of William Chou.
         <mx:Image 
           width="40" height="40"
           source="assets/ui/upgrade.swf" 
-          click="rocket.reload.upgrade(bankroll); updateUpgradePrices();" />
+          click="bankroll = rocket.reload.upgrade(bankroll); updateUpgradePrices();" />
       </mx:VBox>
       
       <mx:VBox width="125" styleName="column">
@@ -353,7 +355,7 @@ either expressed or implied, of William Chou.
         <mx:Image 
           width="40" height="40"
           source="assets/ui/upgrade.swf" 
-          click="rocket.hyperspace.upgrade(bankroll); updateUpgradePrices();" />
+          click="bankroll = rocket.hyperspace.upgrade(bankroll); updateUpgradePrices();" />
       </mx:VBox>
     </mx:HBox>
     <mx:Image 
