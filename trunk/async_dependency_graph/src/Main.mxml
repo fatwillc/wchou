@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   minWidth="955" minHeight="600"
+			   creationComplete="init();">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import com.wchou.adg.AsyncDependencyGraph;
+			
+			private var counter:int = 0;
+			
+			private function init():void {
+				var adg:AsyncDependencyGraph = new AsyncDependencyGraph(this);
+				
+				adg.addNode("google", 
+					function(callback:Function):void {
+						var loader:URLLoader = new URLLoader();
+						loader.addEventListener(Event.COMPLETE, callback);
+						loader.load(new URLRequest("http://www.google.com"));
+					}, function(e:Event):void {
+						trace("Google " + counter);
+						counter ++;
+					});
+				
+				adg.addNode("yahoo", 
+					function(callback:Function):void {
+						var loader:URLLoader = new URLLoader();
+						loader.addEventListener(Event.COMPLETE, callback);
+						loader.load(new URLRequest("http://www.yahoo.com"));
+					}, function(e:Event):void {
+						trace("Yahoo " + counter);
+						counter ++;
+					});
+				
+				adg.addNode("msn", 
+					function(callback:Function):void {
+						var loader:URLLoader = new URLLoader();
+						loader.addEventListener(Event.COMPLETE, callback);
+						loader.load(new URLRequest("http://www.msn.com"));
+					}, function(e:Event):void {
+						trace("MSN " + counter);
+						counter ++;
+					});
+				
+				adg.addEdge("msn", "google");
+				adg.addEdge("msn", "yahoo");
+				adg.addEdge("google", "msn");
+				
+				adg.execute();
+			}
+		]]>
+	</fx:Script>
+</s:Application>
