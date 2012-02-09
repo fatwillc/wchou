@@ -68,7 +68,8 @@ package particle
       rocketSource.addUpdateFunction(ParticleSource.updateShrink);
       rocketEmitter.addSource(rocketSource);
       rocketEmitter.modify(false);
-      emitters[ROCKET_PROPULSION] = rocketEmitter;
+      rocketEmitter.preserve = true;
+      addEmitter(rocketEmitter);
     }
     
     /**
