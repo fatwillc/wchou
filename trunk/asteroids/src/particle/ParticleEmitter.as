@@ -44,7 +44,11 @@ package particle
      * Inactive emitters will be garbage collected on the next update cycle.
      */
     public function get state():int { return _state; }
-    private var _state:int = EmitterState.ACTIVE;  
+    private var _state:int = EmitterState.ACTIVE;
+    
+    /** Should this emitter avoid GC even when inactive? */
+    public function set preserve(value:Boolean):void { _preserve = value; }
+    private var _preserve:Boolean = false;
     
     ///////////////////////////////////////////////////////////////////////////
     // VARIABLES
@@ -125,7 +129,7 @@ package particle
       particles = particles.filter(particleFilter, ParticleSystem.container);
       
       // If emitter is inactive and there are no more particles to update, set for garbage collection.
-      if (particles.length == 0 && _state == EmitterState.INACTIVE)
+      if (!_preserve && particles.length == 0 && _state == EmitterState.INACTIVE)
       {
         _state = EmitterState.DESTROY;
         return;
